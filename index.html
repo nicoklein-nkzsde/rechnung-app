@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NKZS Rechnungen</title>
+<meta name="description" content="Angebote & Rechnungen für NKZS – Foto · Video · Social Media Management">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0d0d0d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NKZS">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0d0d; --panel:#171717; --panel2:#1f1f1f; --line:#2b2b2b;
+  --text:#eaeaea; --muted:#9a9a9a; --faint:#6b6b6b;
+  --accent:#ffffff; --ok:#4cd07d; --warn:#f5c04e; --bad:#f06a5a;
+  --radius:14px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0; padding:0; background:var(--bg); color:var(--text);
+  font-family:'Poppins',-apple-system,BlinkMacSystemFont,sans-serif; font-size:15px;}
+body{padding-bottom:env(safe-area-inset-bottom);}
+
+/* ---------- App chrome ---------- */
+header.app{
+  position:sticky; top:0; z-index:20; background:rgba(13,13,13,.92);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  padding:calc(14px + env(safe-area-inset-top)) 18px 12px; border-bottom:1px solid var(--line);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.brand{line-height:1;}
+.brand .logo{font-weight:800; font-size:26px; letter-spacing:.5px;}
+.brand .tag{font-size:10px; color:var(--muted); letter-spacing:.4px; margin-top:3px;}
+nav.tabs{
+  position:fixed; bottom:0; left:0; right:0; z-index:20;
+  display:flex; background:rgba(13,13,13,.95); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom);
+}
+nav.tabs button{
+  flex:1; background:none; border:none; color:var(--faint); font-family:inherit;
+  font-size:10.5px; padding:10px 0 8px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px;
+}
+nav.tabs button svg{width:22px; height:22px; stroke:currentColor;}
+nav.tabs button.active{color:#fff;}
+main{padding:18px 16px 90px; max-width:860px; margin:0 auto;}
+@media(min-width:900px){ main{padding-top:26px;} }
+
+.view{display:none;} .view.active{display:block;}
+h2.vt{font-size:20px; font-weight:700; margin:4px 0 16px;}
+
+/* ---------- Components ---------- */
+.card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:12px;}
+.stats{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px;}
+.stat{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px;}
+.stat .v{font-size:18px; font-weight:700;}
+.stat .l{font-size:10.5px; color:var(--muted); margin-top:2px;}
+.stat.warn .v{color:var(--bad);}
+
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  background:#fff; color:#0d0d0d; border:none; border-radius:12px;
+  font-family:inherit; font-weight:600; font-size:14px; padding:12px 18px; cursor:pointer;
+}
+.btn.sec{background:var(--panel2); color:var(--text); border:1px solid var(--line);}
+.btn.small{padding:8px 13px; font-size:12.5px; border-radius:10px;}
+.btn.danger{background:none; border:1px solid #6b3430; color:var(--bad);}
+.btn:active{opacity:.75;}
+.btn-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+
+.doc-item{
+  display:flex; align-items:center; gap:12px; padding:14px 14px;
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  margin-bottom:8px; cursor:pointer;
+}
+.doc-item .ic{
+  width:40px; height:40px; border-radius:11px; background:var(--panel2); border:1px solid var(--line);
+  display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; letter-spacing:.5px; color:var(--muted);
+  flex-shrink:0;
+}
+.doc-item .mid{flex:1; min-width:0;}
+.doc-item .t{font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.doc-item .s{font-size:11.5px; color:var(--muted); margin-top:1px;}
+.doc-item .right{text-align:right; flex-shrink:0;}
+.doc-item .amt{font-weight:700; font-size:14px;}
+.badge{display:inline-block; font-size:9.5px; font-weight:600; letter-spacing:.3px; padding:2.5px 8px; border-radius:20px; margin-top:3px;}
+.b-entwurf{background:#2a2a2a; color:#bdbdbd;}
+.b-versendet{background:#2a2822; color:var(--warn);}
+.b-bezahlt,.b-angenommen{background:#1d2f24; color:var(--ok);}
+.b-ueberfaellig,.b-abgelehnt{background:#331f1c; color:var(--bad);}
+.empty{color:var(--faint); text-align:center; padding:40px 20px; font-size:13.5px;}
+
+.seg{display:flex; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:3px; margin-bottom:14px;}
+.seg button{flex:1; border:none; background:none; color:var(--muted); font-family:inherit; font-weight:600; font-size:13px; padding:9px 0; border-radius:9px; cursor:pointer;}
+.seg button.active{background:#fff; color:#0d0d0d;}
+
+label.f{display:block; font-size:11px; color:var(--muted); font-weight:500; margin:12px 0 5px; letter-spacing:.3px;}
+input.f,textarea.f,select.f{
+  width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:10px;
+  color:var(--text); font-family:inherit; font-size:15px; padding:11px 12px; outline:none; -webkit-appearance:none; appearance:none;
+}
+input.f:focus,textarea.f:focus,select.f:focus{border-color:#555;}
+textarea.f{resize:vertical; min-height:70px;}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:0 10px;}
+.grid3{display:grid; grid-template-columns:2fr 1fr 1fr; gap:0 10px;}
+
+.item-row{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:8px; position:relative;}
+.item-row .rm{position:absolute; top:8px; right:8px; background:none; border:none; color:var(--faint); font-size:18px; cursor:pointer; padding:4px 8px;}
+.item-row .sum{font-size:12px; color:var(--muted); text-align:right; margin-top:8px;}
+.item-row input{background:var(--bg);}
+.totals{margin-top:14px; border-top:1px solid var(--line); padding-top:12px; text-align:right;}
+.totals .big{font-size:20px; font-weight:700;}
+.totals .small{font-size:11px; color:var(--muted); margin-top:3px;}
+.chk{display:flex; align-items:center; gap:10px; margin-top:14px; font-size:13.5px; cursor:pointer;}
+.chk input{width:20px; height:20px; accent-color:#fff;}
+.hint{font-size:11.5px; color:var(--faint); line-height:1.5; margin-top:10px;}
+.overdue-note{background:#2a1a17; border:1px solid #4a2a24; color:#f0a698; border-radius:10px; padding:10px 12px; font-size:12px; line-height:1.5; margin-top:10px;}
+
+/* ---------- Preview modal ---------- */
+#previewWrap{position:fixed; inset:0; z-index:50; background:#000; display:none; flex-direction:column;}
+#previewWrap.open{display:flex;}
+#previewBar{display:flex; gap:8px; align-items:center; padding:calc(10px + env(safe-area-inset-top)) 14px 10px; border-bottom:1px solid var(--line); background:#0d0d0d;}
+#previewBar .sp{flex:1;}
+#previewScroll{flex:1; overflow:auto; -webkit-overflow-scrolling:touch; padding:16px 8px 40px; background:#000;}
+.sheet-holder{margin:0 auto 18px; width:min(100%,760px);}
+
+/* ---------- Document sheets (screen + print) ---------- */
+.sheet{
+  background:#0d0d0d; color:#eaeaea; width:100%; aspect-ratio:auto;
+  padding:7% 7% 6%; font-family:'Poppins',sans-serif; border:1px solid #222; border-radius:6px;
+}
+.sheet .doc-head{display:flex; justify-content:space-between; align-items:flex-start;}
+.sheet .logo{font-size:42px; font-weight:800; letter-spacing:1px; line-height:.9; color:#fff;}
+.sheet .tagline{font-size:10px; color:#9a9a9a; margin-top:6px; letter-spacing:.4px;}
+.sheet .doc-type{text-align:right;}
+.sheet .doc-type .dt{font-size:26px; font-weight:800; letter-spacing:.5px; color:#fff; text-transform:uppercase; line-height:1.05;}
+.sheet .doc-type .dn{font-size:11px; color:#9a9a9a; margin-top:6px;}
+.sheet hr.sep{border:none; border-top:1px solid #2e2e2e; margin:22px 0;}
+.sheet .addr-row{display:flex; justify-content:space-between; gap:20px;}
+.sheet .sender{font-size:8.5px; color:#6b6b6b; margin-bottom:6px; text-decoration:underline; text-underline-offset:2px;}
+.sheet .to{font-size:12.5px; line-height:1.55;}
+.sheet .to .nm{font-weight:600;}
+.sheet .meta{font-size:10.5px; color:#bdbdbd; text-align:right; line-height:1.9; min-width:190px;}
+.sheet .meta b{color:#fff; font-weight:600;}
+.sheet table.items{width:100%; border-collapse:collapse; margin-top:26px; font-size:11.5px;}
+.sheet table.items th{
+  text-align:left; font-size:9.5px; letter-spacing:.6px; text-transform:uppercase; color:#9a9a9a;
+  padding:9px 10px; background:#1a1a1a; border-bottom:1px solid #2e2e2e;
+}
+.sheet table.items th.r, .sheet table.items td.r{text-align:right;}
+.sheet table.items td{padding:11px 10px; border-bottom:1px solid #222; vertical-align:top;}
+.sheet table.items td .idesc{color:#8a8a8a; font-size:10px; margin-top:2px; line-height:1.45;}
+.sheet .sumblock{margin-top:16px; display:flex; justify-content:flex-end;}
+.sheet .sumblock .in{min-width:46%;}
+.sheet .sumrow{display:flex; justify-content:space-between; font-size:11.5px; color:#bdbdbd; padding:5px 10px;}
+.sheet .sumrow.total{border-top:1px solid #2e2e2e; margin-top:6px; padding-top:11px; font-size:15px; font-weight:700; color:#fff;}
+.sheet .kust{font-size:9.5px; color:#8a8a8a; margin-top:10px; text-align:right;}
+.sheet .payblock{margin-top:30px; font-size:11px; line-height:1.7; color:#bdbdbd;}
+.sheet .payblock b{color:#fff; font-weight:600;}
+.sheet .notes{margin-top:18px; font-size:11px; color:#bdbdbd; line-height:1.6; white-space:pre-wrap;}
+.sheet .foot{
+  margin-top:44px; padding-top:14px; border-top:1px solid #2e2e2e;
+  display:flex; justify-content:space-between; gap:14px; font-size:8.5px; color:#6b6b6b; line-height:1.7;
+}
+/* AGB sheet */
+.sheet .agb-head{display:flex; justify-content:space-between; align-items:flex-start;}
+.sheet .agb-title{text-align:right; font-size:20px; font-weight:800; letter-spacing:.5px; line-height:1.1; text-transform:uppercase;}
+.sheet .agb-stand{font-size:9px; color:#6b6b6b; margin-top:5px; text-transform:none; font-weight:400; letter-spacing:0;}
+.sheet .agb-intro{font-size:10.5px; color:#bdbdbd; line-height:1.6; margin:18px 0 6px;}
+.sheet .agb-sec{background:#1a1a1a; border-radius:8px; padding:9px 14px; font-weight:700; font-size:12px; margin-top:16px;}
+.sheet .agb-cl{display:flex; gap:14px; font-size:10.5px; line-height:1.55; margin-top:9px; padding:0 4px;}
+.sheet .agb-cl .no{color:#6b6b6b; min-width:24px; flex-shrink:0;}
+.sheet .agb-cl .tx{color:#d6d6d6;}
+.sheet .sig-note{font-size:10.5px; color:#bdbdbd; margin-top:30px;}
+.sheet .sigs{display:flex; gap:40px; margin-top:44px;}
+.sheet .sigs .sig{flex:1;}
+.sheet .sigs .ln{border-top:1px solid #555; padding-top:5px; font-size:9px; color:#8a8a8a;}
+.sheet .sigs .ln + .ln{margin-top:38px;}
+
+/* ---------- Print ---------- */
+#printRoot{display:none;}
+@media print{
+  body *{visibility:hidden;}
+  html,body{background:#0d0d0d !important;}
+  #printRoot{display:block; position:absolute; left:0; top:0; width:100%;}
+  #printRoot, #printRoot *{visibility:visible;}
+  .sheet{
+    border:none; border-radius:0; width:100%; min-height:100vh;
+    page-break-after:always; break-after:page;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    padding:14mm 14mm 12mm;
+  }
+  .sheet:last-child{page-break-after:auto; break-after:auto;}
+  header.app, nav.tabs, main, #previewWrap{display:none !important;}
+}
+@page{size:A4; margin:0;}
+</style>
+</head>
+<body>
+
+<header class="app">
+  <div class="brand">
+    <div class="logo">NKZS</div>
+    <div class="tag">Foto&nbsp;·&nbsp;Video&nbsp;·&nbsp;Social&nbsp;Media&nbsp;Management</div>
+  </div>
+  <button class="btn small" onclick="newDoc()">+ Neu</button>
+</header>
+
+<main>
+  <!-- ===== Übersicht ===== -->
+  <section class="view active" id="view-docs">
+    <div class="stats">
+      <div class="stat"><div class="v" id="stOpen">–</div><div class="l">Offen</div></div>
+      <div class="stat"><div class="v" id="stYear">–</div><div class="l">Bezahlt <span id="stYearLbl"></span></div></div>
+      <div class="stat warn"><div class="v" id="stOver">–</div><div class="l">Überfällig</div></div>
+    </div>
+    <div class="seg" id="filterSeg">
+      <button data-f="alle" class="active">Alle</button>
+      <button data-f="angebot">Angebote</button>
+      <button data-f="rechnung">Rechnungen</button>
+    </div>
+    <div id="docList"></div>
+  </section>
+
+  <!-- ===== Editor ===== -->
+  <section class="view" id="view-edit">
+    <h2 class="vt" id="editTitle">Neues Dokument</h2>
+    <div class="seg" id="typeSeg">
+      <button data-t="rechnung">Rechnung</button>
+      <button data-t="angebot">Angebot</button>
+    </div>
+
+    <div class="card">
+      <div class="grid2">
+        <div><label class="f">Nummer</label><input class="f" id="fNumber"></div>
+        <div><label class="f">Datum</label><input class="f" id="fDate" type="date"></div>
+      </div>
+      <div id="rechnungFields">
+        <label class="f">Leistungsdatum / -zeitraum</label>
+        <input class="f" id="fService" placeholder="z. B. 05.07.2026 oder Juni 2026">
+      </div>
+      <div id="angebotFields" style="display:none">
+        <label class="f">Gültig bis</label>
+        <input class="f" id="fValid" type="date">
+      </div>
+      <label class="f">Status</label>
+      <select class="f" id="fStatus"></select>
+      <div id="overdueNote"></div>
+    </div>
+
+    <div class="card">
+      <label class="f" style="margin-top:0">Kunde wählen</label>
+      <select class="f" id="fCustomerSel"></select>
+      <div class="grid2">
+        <div><label class="f">Firma (optional)</label><input class="f" id="fcFirma"></div>
+        <div><label class="f">Name</label><input class="f" id="fcName"></div>
+      </div>
+      <label class="f">Straße & Nr.</label><input class="f" id="fcStreet">
+      <div class="grid2">
+        <div><label class="f">PLZ</label><input class="f" id="fcZip" inputmode="numeric"></div>
+        <div><label class="f">Ort</label><input class="f" id="fcCity"></div>
+      </div>
+      <label class="f">E-Mail (optional)</label><input class="f" id="fcMail" type="email">
+    </div>
+
+    <div class="card">
+      <label class="f" style="margin-top:0">Positionen</label>
+      <div id="itemsWrap"></div>
+      <button class="btn sec small" onclick="addItem()">+ Position hinzufügen</button>
+      <div class="totals">
+        <div class="big" id="tTotal">0,00 €</div>
+        <div class="small" id="tNote">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <label class="f" style="margin-top:0">Notiz auf dem Dokument (optional)</label>
+      <textarea class="f" id="fNotes" placeholder="z. B. Vielen Dank für die Zusammenarbeit!"></textarea>
+      <label class="chk"><input type="checkbox" id="fAgb" checked> AGB als Seite 2 anhängen</label>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="saveDoc(true)">Speichern & Vorschau</button>
+      <button class="btn sec" onclick="saveDoc(false)">Speichern</button>
+      <button class="btn sec" id="btnConvert" style="display:none" onclick="convertToInvoice()">→ In Rechnung umwandeln</button>
+      <button class="btn danger" id="btnDelete" style="display:none" onclick="deleteDoc()">Löschen</button>
+    </div>
+  </section>
+
+  <!-- ===== Kunden ===== -->
+  <section class="view" id="view-customers">
+    <h2 class="vt">Kunden</h2>
+    <div id="custList"></div>
+    <p class="hint">Kunden werden automatisch gespeichert, wenn du ein Dokument mit neuen Kundendaten anlegst.</p>
+  </section>
+
+  <!-- ===== Einstellungen ===== -->
+  <section class="view" id="view-settings">
+    <h2 class="vt">Einstellungen</h2>
+    <div class="card">
+      <label class="f" style="margin-top:0">Name</label><input class="f" id="sName">
+      <label class="f">Straße & Nr.</label><input class="f" id="sStreet">
+      <div class="grid2">
+        <div><label class="f">PLZ</label><input class="f" id="sZip"></div>
+        <div><label class="f">Ort</label><input class="f" id="sCity"></div>
+      </div>
+      <label class="f">Telefon</label><input class="f" id="sPhone">
+      <label class="f">E-Mail</label><input class="f" id="sMail">
+      <label class="f">Webseite</label><input class="f" id="sWeb">
+    </div>
+    <div class="card">
+      <label class="f" style="margin-top:0">Steuernummer</label><input class="f" id="sTax">
+      <label class="f">Bank</label><input class="f" id="sBank">
+      <label class="f">IBAN</label><input class="f" id="sIban">
+      <label class="f">BIC</label><input class="f" id="sBic">
+      <label class="chk"><input type="checkbox" id="sKlein" checked> Kleinunternehmer (§ 19 UStG, keine USt)</label>
+      <div class="grid2">
+        <div><label class="f">USt-Satz % (falls später)</label><input class="f" id="sVat" inputmode="numeric"></div>
+        <div><label class="f">Zahlungsziel (Tage)</label><input class="f" id="sDue" inputmode="numeric"></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="saveSettings()">Einstellungen speichern</button>
+    </div>
+    <div class="card" style="margin-top:20px">
+      <label class="f" style="margin-top:0">Datensicherung</label>
+      <p class="hint" style="margin-top:0">Alle Daten liegen nur auf diesem Gerät. Mach regelmäßig ein Backup!</p>
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn sec small" onclick="exportData()">Backup exportieren</button>
+        <button class="btn sec small" onclick="document.getElementById('importFile').click()">Backup importieren</button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs">
+  <button class="active" data-v="docs" onclick="showView('docs',this)">
+    <svg fill="none" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M7 3h7l5 5v11a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
+    Dokumente
+  </button>
+  <button data-v="customers" onclick="showView('customers',this)">
+    <svg fill="none" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-2.13a4 4 0 10-4-6.9 4 4 0 004 6.9zm6-3a3 3 0 10-2-5.6"/></svg>
+    Kunden
+  </button>
+  <button data-v="settings" onclick="showView('settings',this)">
+    <svg fill="none" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.3 4.3a1.7 1.7 0 013.4 0 1.7 1.7 0 002.6 1.1 1.7 1.7 0 012.4 2.4 1.7 1.7 0 001 2.5 1.7 1.7 0 010 3.4 1.7 1.7 0 00-1 2.5 1.7 1.7 0 01-2.4 2.4 1.7 1.7 0 00-2.6 1 1.7 1.7 0 01-3.4 0 1.7 1.7 0 00-2.6-1 1.7 1.7 0 01-2.4-2.4 1.7 1.7 0 00-1-2.5 1.7 1.7 0 010-3.4 1.7 1.7 0 001-2.5 1.7 1.7 0 012.4-2.4 1.7 1.7 0 002.6-1.1z"/><circle cx="12" cy="12" r="3" stroke-linecap="round"/></svg>
+    Einstellungen
+  </button>
+</nav>
+
+<!-- ===== Vorschau ===== -->
+<div id="previewWrap">
+  <div id="previewBar">
+    <button class="btn sec small" onclick="closePreview()">‹ Zurück</button>
+    <div class="sp"></div>
+    <button class="btn small" onclick="doPrint()">PDF erstellen / Drucken</button>
+  </div>
+  <div id="previewScroll"></div>
+</div>
+
+<div id="printRoot"></div>
+
+<script>
+/* =================== Daten =================== */
+const LS_KEY = 'nkzs-app-v1';
+const AGB = {
+  stand: 'Juni 2026',
+  intro: 'Diese Bedingungen gelten für alle Aufträge zwischen NKZS / Nico Elia Klein ("Auftragnehmer") und dem Auftraggeber. Mit Auftragserteilung werden sie vollumfänglich anerkannt.',
+  sections: [
+    {t:'§ 1  Leistung & Abnahme', c:[
+      ['1.1','Die Leistungen gelten mit Übergabe der finalen Datei als vollständig erbracht.'],
+      ['1.2','Mängelansprüche sind innerhalb von 14 Tagen schriftlich anzuzeigen. Danach gilt die Leistung als abgenommen. Stilistische Präferenzen begründen keinen Sachmangel.']]},
+    {t:'§ 2  Zahlung & Verzug', c:[
+      ['2.1','Rechnungen sind innerhalb von 24 Tagen vollständig zu begleichen.'],
+      ['2.2','Ab dem 25. Tag tritt automatisch Zahlungsverzug ein — Verzugsgebühr: 50,00 € pro Kalendertag, ohne weitere Mahnung.'],
+      ['2.3','Nutzungsrechte gehen erst mit vollständigem Zahlungseingang über. Veröffentlichung vorher ist untersagt.']]},
+    {t:'§ 3  Eigentumsvorbehalt & Nutzungsrechte', c:[
+      ['3.1','Rohdaten, Schnittdateien und Zwischenstände bleiben bis zur vollständigen Zahlung Eigentum des Auftragnehmers.'],
+      ['3.2','Produzierte Inhalte dürfen für Referenz- und Portfoliozwecke verwendet werden, sofern nicht schriftlich untersagt.']]},
+    {t:'§ 4  Technisches Versagen & höhere Gewalt', c:[
+      ['4.1','Bei Geräteausfällen (Kamera, Ton, Speicher) oder höherer Gewalt wird der vereinbarte Betrag in voller Höhe fällig.'],
+      ['4.2','Fehlende Aufnahmen begründen keinen Anspruch auf Minderung, Rückerstattung oder Schadensersatz.']]},
+    {t:'§ 5  Krankheit & Arbeitsunfähigkeit', c:[
+      ['5.1','Bei vollständiger Arbeitsunfähigkeit des Auftragnehmers werden 5 % des Nettohonorars als Aufwandsentschädigung fällig.'],
+      ['5.2','Ein Ersatztermin wird nach Genesung angeboten und vollständig durchgeführt. Die bereits gezahlten 5 % werden vom Folgehonorar abgezogen — kein doppelter Kostenaufwand.'],
+      ['5.3','Kein Anspruch auf sofortige Leistungserbringung während der Krankheitsphase.']]},
+    {t:'§ 6  Stornierung', c:[
+      ['6.1','Stornierung unter 72 Stunden vor Termin: 50 % des Nettohonorars fällig.'],
+      ['6.2','Stornierung am Drehtag oder Nichterscheinen: 100 % des Nettohonorars fällig.'],
+      ['6.3','Bereits entstandene Kosten (Anfahrt, Equipment, Fremdleistungen) werden in jedem Fall erstattet.']]},
+    {t:'§ 7  Haftung', c:[
+      ['7.1','Haftung für indirekte Schäden oder entgangenen Gewinn ist ausgeschlossen, soweit gesetzlich zulässig.'],
+      ['7.2','Die Gesamthaftung ist auf die Höhe des jeweiligen Rechnungsbetrags begrenzt.']]},
+    {t:'§ 8  Gerichtsstand & Recht', c:[
+      ['8.1','Es gilt deutsches Recht. Gerichtsstand ist Biebertal, soweit gesetzlich zulässig.']]}
+  ]
+};
+
+const defaultState = {
+  settings: {
+    name:'Nico Elia Klein', street:'', zip:'', city:'Biebertal',
+    phone:'', mail:'nicoklein@nkzs.de', web:'nkzs.de',
+    tax:'', bank:'', iban:'', bic:'',
+    klein:true, vat:19, due:24
+  },
+  customers: [],
+  docs: []
+};
+
+let state = load();
+function load(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw){ const s = JSON.parse(raw); return {...structuredClone(defaultState), ...s, settings:{...defaultState.settings, ...(s.settings||{})}}; }
+  }catch(e){}
+  return structuredClone(defaultState);
+}
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+
+/* =================== Utils =================== */
+const EUR = new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'});
+const fmt = n => EUR.format(n||0);
+const uid = () => Math.random().toString(36).slice(2,10);
+const todayISO = () => new Date().toISOString().slice(0,10);
+function deDate(iso){ if(!iso) return ''; const [y,m,d] = iso.split('-'); return `${d}.${m}.${y}`; }
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function parseNum(v){ if(typeof v==='number') return v; v=String(v||'').replace(/\./g,'').replace(',','.'); const n=parseFloat(v); return isNaN(n)?0:n; }
+function docTotal(d){ return (d.items||[]).reduce((s,i)=>s + parseNum(i.qty)*parseNum(i.price), 0); }
+function dueDate(d){ const dt = new Date(d.date+'T00:00:00'); dt.setDate(dt.getDate() + (state.settings.due||24)); return dt; }
+function isOverdue(d){
+  return d.type==='rechnung' && d.status==='versendet' && new Date() > dueDate(d);
+}
+function overdueDays(d){ return Math.floor((Date.now() - dueDate(d).getTime()) / 86400000); }
+function nextNumber(type){
+  const year = new Date().getFullYear();
+  const pre = (type==='rechnung' ? 'RE' : 'AN') + '-' + year + '-';
+  let max = 0;
+  state.docs.forEach(d => {
+    if(d.number && d.number.startsWith(pre)){
+      const n = parseInt(d.number.slice(pre.length),10);
+      if(!isNaN(n) && n>max) max=n;
+    }
+  });
+  return pre + String(max+1).padStart(3,'0');
+}
+const STATUSES = {
+  angebot: [['entwurf','Entwurf'],['versendet','Versendet'],['angenommen','Angenommen'],['abgelehnt','Abgelehnt']],
+  rechnung: [['entwurf','Entwurf'],['versendet','Versendet'],['bezahlt','Bezahlt']]
+};
+
+/* =================== Navigation =================== */
+function showView(v, btn){
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add(btn.dataset.v===v?'active':'active');
+  else document.querySelector(`nav.tabs button[data-v="${v}"]`)?.classList.add('active');
+  if(v==='docs') renderList();
+  if(v==='customers') renderCustomers();
+  if(v==='settings') fillSettings();
+  window.scrollTo(0,0);
+}
+
+/* =================== Übersicht =================== */
+let filter = 'alle';
+document.getElementById('filterSeg').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  filter = b.dataset.f;
+  document.querySelectorAll('#filterSeg button').forEach(x=>x.classList.toggle('active', x===b));
+  renderList();
+});
+function statusOf(d){ return isOverdue(d) ? 'ueberfaellig' : d.status; }
+function statusLabel(d){
+  if(isOverdue(d)) return 'Überfällig · '+overdueDays(d)+' Tg.';
+  const all = [...STATUSES.angebot, ...STATUSES.rechnung];
+  return (all.find(s=>s[0]===d.status)||['','?'])[1];
+}
+function renderList(){
+  const year = new Date().getFullYear();
+  const open = state.docs.filter(d=>d.type==='rechnung' && d.status==='versendet');
+  const paid = state.docs.filter(d=>d.type==='rechnung' && d.status==='bezahlt' && (d.date||'').startsWith(year));
+  const over = open.filter(isOverdue);
+  document.getElementById('stOpen').textContent = fmt(open.reduce((s,d)=>s+docTotal(d),0));
+  document.getElementById('stYear').textContent = fmt(paid.reduce((s,d)=>s+docTotal(d),0));
+  document.getElementById('stYearLbl').textContent = year;
+  document.getElementById('stOver').textContent = over.length;
+
+  const docs = state.docs
+    .filter(d => filter==='alle' || d.type===filter)
+    .sort((a,b) => (b.date||'').localeCompare(a.date||'') || (b.number||'').localeCompare(a.number||''));
+  const el = document.getElementById('docList');
+  if(!docs.length){
+    el.innerHTML = '<div class="empty">Noch keine Dokumente.<br>Tippe oben auf „+ Neu", um dein erstes Angebot oder deine erste Rechnung zu erstellen.</div>';
+    return;
+  }
+  el.innerHTML = docs.map(d=>`
+    <div class="doc-item" onclick="editDoc('${d.id}')">
+      <div class="ic">${d.type==='rechnung'?'RE':'AN'}</div>
+      <div class="mid">
+        <div class="t">${esc(d.customer?.firma || d.customer?.name || 'Ohne Kunde')}</div>
+        <div class="s">${esc(d.number)} · ${deDate(d.date)}</div>
+      </div>
+      <div class="right">
+        <div class="amt">${fmt(docTotal(d))}</div>
+        <span class="badge b-${statusOf(d)}">${statusLabel(d)}</span>
+      </div>
+    </div>`).join('');
+}
+
+/* =================== Editor =================== */
+let editing = null; // doc object being edited
+document.getElementById('typeSeg').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  setType(b.dataset.t, true);
+});
+function setType(t, renumber){
+  editing.type = t;
+  document.querySelectorAll('#typeSeg button').forEach(x=>x.classList.toggle('active', x.dataset.t===t));
+  document.getElementById('rechnungFields').style.display = t==='rechnung'?'':'none';
+  document.getElementById('angebotFields').style.display = t==='angebot'?'':'none';
+  if(renumber) document.getElementById('fNumber').value = nextNumber(t);
+  const sel = document.getElementById('fStatus');
+  sel.innerHTML = STATUSES[t].map(s=>`<option value="${s[0]}">${s[1]}</option>`).join('');
+  sel.value = STATUSES[t].some(s=>s[0]===editing.status) ? editing.status : 'entwurf';
+  renderOverdueNote();
+}
+function newDoc(){
+  editing = {
+    id: uid(), type:'rechnung', number:'', date: todayISO(),
+    service:'', valid:'', status:'entwurf',
+    customer:{firma:'',name:'',street:'',zip:'',city:'',mail:''},
+    items:[{desc:'',detail:'',qty:1,unit:'pauschal',price:''}],
+    notes:'', agb:true, isNew:true
+  };
+  const v = new Date(); v.setDate(v.getDate()+14);
+  editing.valid = v.toISOString().slice(0,10);
+  fillEditor();
+  showView('edit', null);
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+}
+function editDoc(id){
+  const d = state.docs.find(x=>x.id===id); if(!d) return;
+  editing = structuredClone(d); editing.isNew = false;
+  fillEditor();
+  showView('edit', null);
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+}
+function fillEditor(){
+  document.getElementById('editTitle').textContent = editing.isNew ? 'Neues Dokument' : (editing.number || 'Dokument bearbeiten');
+  document.getElementById('fNumber').value = editing.number || nextNumber(editing.type);
+  document.getElementById('fDate').value = editing.date;
+  document.getElementById('fService').value = editing.service||'';
+  document.getElementById('fValid').value = editing.valid||'';
+  document.getElementById('fNotes').value = editing.notes||'';
+  document.getElementById('fAgb').checked = editing.agb!==false;
+  const c = editing.customer||{};
+  fcFirma.value=c.firma||''; fcName.value=c.name||''; fcStreet.value=c.street||'';
+  fcZip.value=c.zip||''; fcCity.value=c.city||''; fcMail.value=c.mail||'';
+  // customer dropdown
+  const sel = document.getElementById('fCustomerSel');
+  sel.innerHTML = '<option value="">– Neuer Kunde / manuell –</option>' +
+    state.customers.map((k,i)=>`<option value="${i}">${esc(k.firma||k.name)}</option>`).join('');
+  sel.onchange = ()=>{
+    if(sel.value==='') return;
+    const k = state.customers[+sel.value];
+    fcFirma.value=k.firma||''; fcName.value=k.name||''; fcStreet.value=k.street||'';
+    fcZip.value=k.zip||''; fcCity.value=k.city||''; fcMail.value=k.mail||'';
+  };
+  setType(editing.type, false);
+  if(!editing.number) document.getElementById('fNumber').value = nextNumber(editing.type);
+  document.getElementById('btnDelete').style.display = editing.isNew ? 'none':'';
+  document.getElementById('btnConvert').style.display = (!editing.isNew && editing.type==='angebot') ? '':'none';
+  renderItems();
+  document.getElementById('fStatus').onchange = renderOverdueNote;
+  document.getElementById('fDate').onchange = renderOverdueNote;
+}
+function renderOverdueNote(){
+  const el = document.getElementById('overdueNote');
+  const d = {...editing, date: document.getElementById('fDate').value, status: document.getElementById('fStatus').value, type: editing.type};
+  if(editing.type==='rechnung' && isOverdue(d)){
+    const days = overdueDays(d);
+    el.innerHTML = `<div class="overdue-note">⚠️ Diese Rechnung ist seit <b>${days} Tag${days===1?'':'en'}</b> überfällig (Zahlungsziel: ${deDate(dueDate(d).toISOString().slice(0,10))}).<br>Laut deinen AGB § 2.2 wären das <b>${fmt(days*50)}</b> Verzugsgebühr (50 € / Kalendertag).</div>`;
+  } else el.innerHTML='';
+}
+function renderItems(){
+  const w = document.getElementById('itemsWrap');
+  w.innerHTML = editing.items.map((it,i)=>`
+    <div class="item-row">
+      ${editing.items.length>1?`<button class="rm" onclick="rmItem(${i})">×</button>`:''}
+      <label class="f" style="margin-top:0">Bezeichnung</label>
+      <input class="f" value="${esc(it.desc)}" oninput="uItem(${i},'desc',this.value)" placeholder="z. B. Videoproduktion Imagefilm">
+      <label class="f">Beschreibung (optional)</label>
+      <input class="f" value="${esc(it.detail||'')}" oninput="uItem(${i},'detail',this.value)" placeholder="z. B. Dreh, Schnitt, Colorgrading, 1 Korrekturschleife">
+      <div class="grid3">
+        <div><label class="f">Einheit</label>
+          <select class="f" onchange="uItem(${i},'unit',this.value)">
+            ${['pauschal','Stk.','Std.','Tag'].map(u=>`<option ${it.unit===u?'selected':''}>${u}</option>`).join('')}
+          </select></div>
+        <div><label class="f">Menge</label><input class="f" inputmode="decimal" value="${esc(it.qty)}" oninput="uItem(${i},'qty',this.value)"></div>
+        <div><label class="f">Einzelpreis €</label><input class="f" inputmode="decimal" value="${esc(it.price)}" oninput="uItem(${i},'price',this.value)"></div>
+      </div>
+      <div class="sum">= ${fmt(parseNum(it.qty)*parseNum(it.price))}</div>
+    </div>`).join('');
+  updateTotals();
+}
+function uItem(i,k,v){
+  editing.items[i][k]=v;
+  if(k==='qty'||k==='price'){
+    const row = document.querySelectorAll('#itemsWrap .item-row')[i];
+    row.querySelector('.sum').textContent = '= '+fmt(parseNum(editing.items[i].qty)*parseNum(editing.items[i].price));
+    updateTotals();
+  }
+}
+function addItem(){ editing.items.push({desc:'',detail:'',qty:1,unit:'pauschal',price:''}); renderItems(); }
+function rmItem(i){ editing.items.splice(i,1); renderItems(); }
+function updateTotals(){
+  const s = state.settings;
+  const net = docTotal(editing);
+  if(s.klein){
+    document.getElementById('tTotal').textContent = fmt(net);
+    document.getElementById('tNote').textContent = 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.';
+  }else{
+    const vat = net*(s.vat||19)/100;
+    document.getElementById('tTotal').textContent = fmt(net+vat);
+    document.getElementById('tNote').textContent = `Netto ${fmt(net)} + ${s.vat||19} % USt ${fmt(vat)}`;
+  }
+}
+function collectEditor(){
+  editing.number = fNumber.value.trim();
+  editing.date = fDate.value || todayISO();
+  editing.service = fService.value.trim();
+  editing.valid = fValid.value;
+  editing.status = fStatus.value;
+  editing.notes = fNotes.value;
+  editing.agb = fAgb.checked;
+  editing.customer = {
+    firma:fcFirma.value.trim(), name:fcName.value.trim(), street:fcStreet.value.trim(),
+    zip:fcZip.value.trim(), city:fcCity.value.trim(), mail:fcMail.value.trim()
+  };
+}
+function saveDoc(preview){
+  collectEditor();
+  if(!editing.customer.name && !editing.customer.firma){ alert('Bitte mindestens Name oder Firma des Kunden angeben.'); return; }
+  if(!editing.items.some(i=>i.desc.trim())){ alert('Bitte mindestens eine Position mit Bezeichnung angeben.'); return; }
+  const {isNew, ...doc} = editing;
+  const idx = state.docs.findIndex(d=>d.id===doc.id);
+  if(idx>=0) state.docs[idx]=doc; else state.docs.push(doc);
+  // Kunde merken/aktualisieren
+  const c = doc.customer;
+  const key = (c.firma||c.name).toLowerCase();
+  const ci = state.customers.findIndex(k=>(k.firma||k.name).toLowerCase()===key);
+  if(ci>=0) state.customers[ci]=c; else state.customers.push(c);
+  save();
+  editing.isNew = false;
+  if(preview) openPreview(doc);
+  else { showView('docs', null); }
+}
+function deleteDoc(){
+  if(!confirm('Dokument wirklich löschen?')) return;
+  state.docs = state.docs.filter(d=>d.id!==editing.id);
+  save(); showView('docs', null);
+}
+function convertToInvoice(){
+  collectEditor();
+  const inv = structuredClone(editing);
+  inv.id = uid(); inv.type='rechnung'; inv.status='entwurf';
+  inv.number = nextNumber('rechnung'); inv.date = todayISO();
+  inv.service = ''; inv.isNew = true;
+  editing = inv; fillEditor();
+  window.scrollTo(0,0);
+}
+
+/* =================== Kunden =================== */
+function renderCustomers(){
+  const el = document.getElementById('custList');
+  if(!state.customers.length){ el.innerHTML='<div class="empty">Noch keine Kunden gespeichert.</div>'; return; }
+  el.innerHTML = state.customers.map((k,i)=>`
+    <div class="doc-item">
+      <div class="ic">${esc((k.firma||k.name||'?').slice(0,2).toUpperCase())}</div>
+      <div class="mid">
+        <div class="t">${esc(k.firma||k.name)}</div>
+        <div class="s">${esc([k.name!==k.firma?k.name:'', k.city].filter(Boolean).join(' · '))}</div>
+      </div>
+      <button class="btn danger small" onclick="delCustomer(${i});event.stopPropagation()">Löschen</button>
+    </div>`).join('');
+}
+function delCustomer(i){
+  if(!confirm('Kunde löschen? (Bestehende Dokumente bleiben unverändert)')) return;
+  state.customers.splice(i,1); save(); renderCustomers();
+}
+
+/* =================== Einstellungen =================== */
+function fillSettings(){
+  const s = state.settings;
+  sName.value=s.name; sStreet.value=s.street; sZip.value=s.zip; sCity.value=s.city;
+  sPhone.value=s.phone; sMail.value=s.mail; sWeb.value=s.web;
+  sTax.value=s.tax; sBank.value=s.bank; sIban.value=s.iban; sBic.value=s.bic;
+  sKlein.checked=s.klein; sVat.value=s.vat; sDue.value=s.due;
+}
+function saveSettings(){
+  state.settings = {
+    name:sName.value.trim(), street:sStreet.value.trim(), zip:sZip.value.trim(), city:sCity.value.trim(),
+    phone:sPhone.value.trim(), mail:sMail.value.trim(), web:sWeb.value.trim(),
+    tax:sTax.value.trim(), bank:sBank.value.trim(), iban:sIban.value.trim(), bic:sBic.value.trim(),
+    klein:sKlein.checked, vat:parseNum(sVat.value)||19, due:parseInt(sDue.value)||24
+  };
+  save(); alert('Gespeichert ✓');
+}
+function exportData(){
+  const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'nkzs-backup-'+todayISO()+'.json';
+  a.click();
+}
+function importData(ev){
+  const f = ev.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const s = JSON.parse(r.result);
+      if(!s.docs || !s.settings) throw 0;
+      state = s; save(); alert('Backup importiert ✓'); showView('docs', null);
+    }catch(e){ alert('Datei konnte nicht gelesen werden.'); }
+  };
+  r.readAsText(f);
+}
+
+/* =================== Dokument-HTML (PDF) =================== */
+function docSheetHTML(d){
+  const s = state.settings;
+  const net = docTotal(d);
+  const vat = s.klein ? 0 : net*(s.vat||19)/100;
+  const total = net + vat;
+  const isRe = d.type==='rechnung';
+  const due = dueDate(d);
+  const senderLine = [s.name, s.street, [s.zip,s.city].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
+  const c = d.customer||{};
+  const rows = (d.items||[]).filter(i=>i.desc.trim()).map((it,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td><div>${esc(it.desc)}</div>${it.detail?`<div class="idesc">${esc(it.detail)}</div>`:''}</td>
+      <td class="r">${esc(it.qty)} ${esc(it.unit)}</td>
+      <td class="r">${fmt(parseNum(it.price))}</td>
+      <td class="r">${fmt(parseNum(it.qty)*parseNum(it.price))}</td>
+    </tr>`).join('');
+  const sums = s.klein
+    ? `<div class="sumrow total"><span>Gesamtbetrag</span><span>${fmt(total)}</span></div>`
+    : `<div class="sumrow"><span>Zwischensumme (netto)</span><span>${fmt(net)}</span></div>
+       <div class="sumrow"><span>Umsatzsteuer ${s.vat||19} %</span><span>${fmt(vat)}</span></div>
+       <div class="sumrow total"><span>Gesamtbetrag</span><span>${fmt(total)}</span></div>`;
+  const kust = s.klein ? `<div class="kust">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</div>` : '';
+  const pay = isRe ? `
+    <div class="payblock">
+      Bitte überweise den Gesamtbetrag von <b>${fmt(total)}</b> bis zum <b>${deDate(due.toISOString().slice(0,10))}</b>
+      (${s.due||24} Tage, § 2.1 AGB) unter Angabe der Rechnungsnummer <b>${esc(d.number)}</b>.<br>
+      ${s.bank||s.iban ? `<b>${esc(s.bank)}</b>${s.bank?' · ':''}IBAN: <b>${esc(s.iban)}</b>${s.bic?` · BIC: ${esc(s.bic)}`:''}` : ''}
+    </div>` : `
+    <div class="payblock">
+      Dieses Angebot ist gültig bis <b>${deDate(d.valid)||'–'}</b>. Mit Auftragserteilung gelten die beiliegenden AGB als anerkannt.
+    </div>`;
+  return `
+  <div class="sheet">
+    <div class="doc-head">
+      <div>
+        <div class="logo">NKZS</div>
+        <div class="tagline">Foto&nbsp;·&nbsp;Video&nbsp;·&nbsp;Social&nbsp;Media&nbsp;Management</div>
+      </div>
+      <div class="doc-type">
+        <div class="dt">${isRe?'Rechnung':'Angebot'}</div>
+        <div class="dn">${esc(d.number)}</div>
+      </div>
+    </div>
+    <hr class="sep">
+    <div class="addr-row">
+      <div>
+        <div class="sender">${esc(senderLine)}</div>
+        <div class="to">
+          ${c.firma?`<div class="nm">${esc(c.firma)}</div>`:''}
+          <div class="${c.firma?'':'nm'}">${esc(c.name)}</div>
+          <div>${esc(c.street)}</div>
+          <div>${esc([c.zip,c.city].filter(Boolean).join(' '))}</div>
+        </div>
+      </div>
+      <div class="meta">
+        <div>${isRe?'Rechnungsnr.':'Angebotsnr.'}: <b>${esc(d.number)}</b></div>
+        <div>Datum: <b>${deDate(d.date)}</b></div>
+        ${isRe && d.service?`<div>Leistungsdatum: <b>${esc(d.service)}</b></div>`:''}
+        ${isRe?`<div>Zahlungsziel: <b>${deDate(due.toISOString().slice(0,10))}</b></div>`:''}
+        ${!isRe && d.valid?`<div>Gültig bis: <b>${deDate(d.valid)}</b></div>`:''}
+        ${s.tax?`<div>Steuernr.: <b>${esc(s.tax)}</b></div>`:''}
+      </div>
+    </div>
+    <table class="items">
+      <thead><tr><th style="width:5%">Pos.</th><th>Bezeichnung</th><th class="r" style="width:14%">Menge</th><th class="r" style="width:16%">Einzelpreis</th><th class="r" style="width:16%">Gesamt</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="sumblock"><div class="in">${sums}</div></div>
+    ${kust}
+    ${pay}
+    ${d.notes?`<div class="notes">${esc(d.notes)}</div>`:''}
+    <div class="foot">
+      <div><b style="color:#9a9a9a">NKZS / ${esc(s.name)}</b><br>${esc(s.street)}${s.street?'<br>':''}${esc([s.zip,s.city].filter(Boolean).join(' '))}</div>
+      <div>${s.phone?esc(s.phone)+'<br>':''}${esc(s.mail)}<br>${esc(s.web)}</div>
+      <div style="text-align:right">${s.tax?'Steuernummer: '+esc(s.tax)+'<br>':''}${s.iban?'IBAN: '+esc(s.iban)+'<br>':''}${s.bic?'BIC: '+esc(s.bic):''}</div>
+    </div>
+  </div>`;
+}
+function agbSheetsHTML(){
+  const mk = secs => secs.map(sec=>`
+    <div class="agb-sec">${esc(sec.t)}</div>
+    ${sec.c.map(([n,t])=>`<div class="agb-cl"><span class="no">${n}</span><span class="tx">${esc(t)}</span></div>`).join('')}`).join('');
+  const head = `
+    <div class="agb-head">
+      <div>
+        <div class="logo" style="font-size:34px">NKZS</div>
+        <div class="tagline">Foto&nbsp;·&nbsp;Video&nbsp;·&nbsp;Social&nbsp;Media&nbsp;Management</div>
+      </div>
+      <div class="agb-title">Allgemeine<br>Geschäftsbedingungen<div class="agb-stand">Stand: ${AGB.stand}</div></div>
+    </div>
+    <hr class="sep">`;
+  const p1 = `<div class="sheet">${head}<div class="agb-intro">${esc(AGB.intro)}</div>${mk(AGB.sections.slice(0,4))}</div>`;
+  const p2 = `<div class="sheet">${mk(AGB.sections.slice(4))}
+    <div class="sig-note">Mit Ihrer Unterschrift bestätigen Sie, diese AGB gelesen, verstanden und akzeptiert zu haben.</div>
+    <div class="sigs">
+      <div class="sig"><div class="ln">Ort, Datum</div><div class="ln">Unterschrift Auftraggeber</div></div>
+      <div class="sig"><div class="ln">Ort, Datum</div><div class="ln">Unterschrift NKZS / ${esc(state.settings.name)}</div></div>
+    </div>
+  </div>`;
+  return p1+p2;
+}
+function fullDocHTML(d){
+  return docSheetHTML(d) + (d.agb!==false ? agbSheetsHTML() : '');
+}
+
+/* =================== Vorschau & Druck =================== */
+let previewDoc = null;
+function openPreview(d){
+  previewDoc = d;
+  const html = fullDocHTML(d);
+  document.getElementById('previewScroll').innerHTML =
+    html.replaceAll('<div class="sheet">','<div class="sheet-holder"><div class="sheet">').replaceAll('</div><!--sheet-->','') // simple wrap below instead
+  ;
+  // wrap each sheet for scroll layout
+  const scroll = document.getElementById('previewScroll');
+  scroll.innerHTML = html;
+  scroll.querySelectorAll('.sheet').forEach(sh=>{
+    const holder = document.createElement('div'); holder.className='sheet-holder';
+    sh.parentNode.insertBefore(holder, sh); holder.appendChild(sh);
+  });
+  document.getElementById('previewWrap').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closePreview(){
+  document.getElementById('previewWrap').classList.remove('open');
+  document.body.style.overflow='';
+}
+function doPrint(){
+  if(!previewDoc) return;
+  document.getElementById('printRoot').innerHTML = fullDocHTML(previewDoc);
+  const isStandaloneIOS = window.navigator.standalone === true;
+  if(isStandaloneIOS && typeof window.print !== 'function'){
+    alert('PDF-Export: Öffne die App einmal in Safari (gleiche Adresse) und tippe dort auf „PDF erstellen" → Teilen → „Als PDF sichern".');
+    return;
+  }
+  setTimeout(()=>window.print(), 60);
+}
+
+/* =================== Init =================== */
+renderList();
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
