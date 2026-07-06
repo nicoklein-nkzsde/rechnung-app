@@ -6,7 +6,8 @@
 <title>NKZS Rechnungen</title>
 <meta name="description" content="Angebote & Rechnungen für NKZS – Foto · Video · Social Media Management">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#0d0d0d">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="NKZS">
@@ -14,188 +15,274 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
+/* ================= iOS Design System ================= */
 :root{
-  --bg:#0d0d0d; --panel:#171717; --panel2:#1f1f1f; --line:#2b2b2b;
-  --text:#eaeaea; --muted:#9a9a9a; --faint:#6b6b6b;
-  --accent:#ffffff; --ok:#4cd07d; --warn:#f5c04e; --bad:#f06a5a;
-  --radius:14px;
+  --bg:#000000;
+  --card:#1c1c1e; --card2:#2c2c2e;
+  --fill:rgba(120,120,128,.20);
+  --sep:rgba(84,84,88,.62);
+  --label:#ffffff;
+  --label2:#98989f;   /* secondaryLabel dark */
+  --label3:#636366;   /* tertiaryLabel dark */
+  --green:#30d158; --orange:#ff9f0a; --red:#ff453a; --blue:#0a84ff;
+  --ui:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif;
+  --brand:'Poppins',-apple-system,sans-serif;
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-html,body{margin:0; padding:0; background:var(--bg); color:var(--text);
-  font-family:'Poppins',-apple-system,BlinkMacSystemFont,sans-serif; font-size:15px;}
-body{padding-bottom:env(safe-area-inset-bottom);}
+html{-webkit-text-size-adjust:100%;}
+html,body{margin:0; padding:0; background:var(--bg); color:var(--label);
+  font-family:var(--ui); font-size:17px; touch-action:manipulation;}
+body{padding-bottom:env(safe-area-inset-bottom); -webkit-font-smoothing:antialiased;}
+header.app, nav.tabs, .large-title, h2, label, .row .s, .badge{-webkit-user-select:none; user-select:none;}
 
-/* ---------- App chrome ---------- */
+/* ================= Chrome ================= */
 header.app{
-  position:sticky; top:0; z-index:20; background:rgba(13,13,13,.92);
-  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-  padding:calc(14px + env(safe-area-inset-top)) 18px 12px; border-bottom:1px solid var(--line);
+  position:sticky; top:0; z-index:20;
+  background:rgba(0,0,0,.78);
+  backdrop-filter:saturate(180%) blur(20px); -webkit-backdrop-filter:saturate(180%) blur(20px);
+  padding:calc(10px + env(safe-area-inset-top)) 16px 8px;
   display:flex; align-items:center; justify-content:space-between;
+  border-bottom:.5px solid var(--sep);
 }
-.brand{line-height:1;}
-.brand .logo{font-weight:800; font-size:26px; letter-spacing:.5px;}
-.brand .tag{font-size:10px; color:var(--muted); letter-spacing:.4px; margin-top:3px;}
+.logo-sm{font-family:var(--brand); font-weight:800; font-size:21px; letter-spacing:.5px; line-height:1;}
+.logo-sm small{display:block; font-family:var(--ui); font-weight:500; font-size:9px; color:var(--label2); letter-spacing:.3px; margin-top:2px;}
+.icon-btn{
+  width:34px; height:34px; border-radius:50%; border:none; background:var(--card);
+  color:#fff; font-size:22px; font-weight:400; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; padding-bottom:2px;
+  transition:transform .15s ease, opacity .15s ease;
+}
+.icon-btn:active{transform:scale(.92); opacity:.7;}
+
 nav.tabs{
   position:fixed; bottom:0; left:0; right:0; z-index:20;
-  display:flex; background:rgba(13,13,13,.95); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-  border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom);
+  display:flex; background:rgba(0,0,0,.82);
+  backdrop-filter:saturate(180%) blur(20px); -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-top:.5px solid var(--sep); padding-bottom:env(safe-area-inset-bottom);
 }
 nav.tabs button{
-  flex:1; background:none; border:none; color:var(--faint); font-family:inherit;
-  font-size:10.5px; padding:10px 0 8px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px;
+  flex:1; background:none; border:none; color:var(--label3); font-family:var(--ui);
+  font-size:10px; font-weight:500; padding:7px 0 5px; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; gap:2px;
 }
-nav.tabs button svg{width:22px; height:22px; stroke:currentColor;}
+nav.tabs button svg{width:26px; height:26px; stroke:currentColor;}
 nav.tabs button.active{color:#fff;}
-main{padding:18px 16px 90px; max-width:860px; margin:0 auto;}
-@media(min-width:900px){ main{padding-top:26px;} }
 
-.view{display:none;} .view.active{display:block;}
-h2.vt{font-size:20px; font-weight:700; margin:4px 0 16px;}
+main{padding:6px 16px 100px; max-width:760px; margin:0 auto;}
+.large-title{font-size:34px; font-weight:700; letter-spacing:.2px; margin:14px 0 14px; line-height:1.15;}
+.backbtn{
+  background:none; border:none; color:var(--label2); font-family:var(--ui); font-size:17px;
+  padding:10px 0 0; margin:0; cursor:pointer; display:flex; align-items:center; gap:2px;
+}
+.backbtn:active{opacity:.5;}
 
-/* ---------- Components ---------- */
-.card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:12px;}
+.view{display:none;}
+.view.active{display:block; animation:viewin .3s cubic-bezier(.32,.72,0,1);}
+@keyframes viewin{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;}}
+
+/* ================= Components ================= */
 .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px;}
-.stat{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px;}
-.stat .v{font-size:18px; font-weight:700;}
-.stat .l{font-size:10.5px; color:var(--muted); margin-top:2px;}
-.stat.warn .v{color:var(--bad);}
+.stat{background:var(--card); border-radius:14px; padding:12px 13px;}
+.stat .v{font-size:17px; font-weight:700; letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.stat .l{font-size:11px; color:var(--label2); margin-top:3px; font-weight:500;}
+.stat.warn .v{color:var(--red);}
+
+.seg{display:flex; background:rgba(118,118,128,.24); border-radius:9px; padding:2px; margin-bottom:16px;}
+.seg button{
+  flex:1; border:none; background:none; color:#fff; font-family:var(--ui); font-weight:600;
+  font-size:13px; padding:7px 0; border-radius:7px; cursor:pointer; transition:background .2s ease;
+}
+.seg button.active{background:#636366; box-shadow:0 3px 8px rgba(0,0,0,.25);}
+
+.list{background:var(--card); border-radius:12px; overflow:hidden; margin-bottom:14px;}
+.row{
+  display:flex; align-items:center; gap:12px; padding:12px 16px; cursor:pointer;
+  position:relative; transition:background .15s ease;
+}
+.row:active{background:var(--card2);}
+.row + .row::before{
+  content:''; position:absolute; top:0; left:64px; right:0; border-top:.5px solid var(--sep);
+}
+.row .ic{
+  width:38px; height:38px; border-radius:10px; background:var(--card2);
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700; letter-spacing:.5px; color:var(--label2); flex-shrink:0;
+}
+.row .mid{flex:1; min-width:0;}
+.row .t{font-weight:600; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.row .s{font-size:13px; color:var(--label2); margin-top:1px;}
+.row .right{text-align:right; flex-shrink:0;}
+.row .amt{font-weight:600; font-size:16px; font-variant-numeric:tabular-nums;}
+.row .chev{color:var(--label3); font-size:17px; font-weight:600; flex-shrink:0; margin-left:-4px;}
+.badge{display:inline-block; font-size:10px; font-weight:600; letter-spacing:.2px; padding:2.5px 8px; border-radius:20px; margin-top:3px;}
+.b-entwurf{background:rgba(142,142,147,.22); color:#aeaeb2;}
+.b-versendet{background:rgba(255,159,10,.16); color:var(--orange);}
+.b-bezahlt,.b-angenommen{background:rgba(48,209,88,.16); color:var(--green);}
+.b-ueberfaellig,.b-abgelehnt{background:rgba(255,69,58,.16); color:var(--red);}
+.empty{color:var(--label3); text-align:center; padding:56px 24px; font-size:15px; line-height:1.5;}
+.empty .big{font-size:44px; margin-bottom:12px;}
+
+.card{background:var(--card); border-radius:12px; padding:14px 16px; margin-bottom:14px;}
+.card-label{font-size:13px; font-weight:400; color:var(--label2); text-transform:uppercase; letter-spacing:.4px; margin:0 16px 7px; }
+
+label.f{display:block; font-size:13px; color:var(--label2); font-weight:400; margin:13px 0 6px;}
+label.f:first-child{margin-top:2px;}
+input.f,textarea.f,select.f{
+  width:100%; background:var(--fill); border:none; border-radius:10px;
+  color:var(--label); font-family:var(--ui); font-size:17px; padding:11px 13px;
+  outline:none; -webkit-appearance:none; appearance:none;
+}
+input.f::placeholder,textarea.f::placeholder{color:var(--label3);}
+textarea.f{resize:vertical; min-height:72px;}
+select.f{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2398989f' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 13px center; padding-right:34px;
+}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:0 10px;}
+.grid3{display:grid; grid-template-columns:1.25fr .85fr 1fr; gap:0 8px;}
+.grid3 input.f,.grid3 select.f{font-size:15px; padding:12px 10px;}
+.grid3 select.f{padding-right:24px; background-position:right 8px center;}
+
+/* iOS Switch */
+.chk{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:15px; font-size:16px; cursor:pointer;}
+.chk input{position:absolute; opacity:0; width:0; height:0;}
+.chk .sw{
+  width:51px; height:31px; border-radius:16px; background:rgba(120,120,128,.32);
+  position:relative; flex-shrink:0; transition:background .25s ease;
+}
+.chk .sw::after{
+  content:''; position:absolute; width:27px; height:27px; border-radius:50%;
+  background:#fff; top:2px; left:2px; transition:transform .25s cubic-bezier(.3,.9,.5,1);
+  box-shadow:0 3px 8px rgba(0,0,0,.35), 0 1px 1px rgba(0,0,0,.16);
+}
+.chk input:checked + .sw{background:var(--green);}
+.chk input:checked + .sw::after{transform:translateX(20px);}
 
 .btn{
   display:inline-flex; align-items:center; justify-content:center; gap:8px;
-  background:#fff; color:#0d0d0d; border:none; border-radius:12px;
-  font-family:inherit; font-weight:600; font-size:14px; padding:12px 18px; cursor:pointer;
+  background:#fff; color:#000; border:none; border-radius:14px;
+  font-family:var(--ui); font-weight:600; font-size:17px; padding:14px 20px; cursor:pointer;
+  transition:transform .15s ease, opacity .15s ease;
 }
-.btn.sec{background:var(--panel2); color:var(--text); border:1px solid var(--line);}
-.btn.small{padding:8px 13px; font-size:12.5px; border-radius:10px;}
-.btn.danger{background:none; border:1px solid #6b3430; color:var(--bad);}
-.btn:active{opacity:.75;}
-.btn-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+.btn:active{transform:scale(.97); opacity:.8;}
+.btn.sec{background:var(--card); color:#fff;}
+.btn.small{padding:8px 14px; font-size:15px; border-radius:11px;}
+.btn.danger{background:none; color:var(--red); border:none;}
+.btn.block{width:100%;}
+.btn-row{display:flex; flex-direction:column; gap:10px; margin-top:18px;}
+.btn-row.h{flex-direction:row; flex-wrap:wrap;}
 
-.doc-item{
-  display:flex; align-items:center; gap:12px; padding:14px 14px;
-  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
-  margin-bottom:8px; cursor:pointer;
+.item-row{background:var(--card2); border-radius:12px; padding:12px 13px; margin-bottom:10px; position:relative;}
+.item-row .rm{
+  position:absolute; top:9px; right:9px; width:26px; height:26px; border-radius:50%;
+  background:rgba(120,120,128,.28); border:none; color:var(--label2); font-size:15px;
+  cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1;
 }
-.doc-item .ic{
-  width:40px; height:40px; border-radius:11px; background:var(--panel2); border:1px solid var(--line);
-  display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; letter-spacing:.5px; color:var(--muted);
-  flex-shrink:0;
+.item-row input.f, .item-row select.f{background:rgba(120,120,128,.16);}
+.item-row .sum{font-size:14px; color:var(--label2); text-align:right; margin-top:10px; font-variant-numeric:tabular-nums;}
+.totals{margin-top:16px; border-top:.5px solid var(--sep); padding-top:13px; text-align:right;}
+.totals .big{font-size:24px; font-weight:700; letter-spacing:.2px; font-variant-numeric:tabular-nums;}
+.totals .small{font-size:12px; color:var(--label2); margin-top:4px;}
+.hint{font-size:13px; color:var(--label3); line-height:1.5; margin:10px 4px 0;}
+.overdue-note{background:rgba(255,69,58,.12); color:#ff8a80; border-radius:10px; padding:11px 13px; font-size:13px; line-height:1.5; margin-top:12px;}
+.overdue-note b{color:#ffb3ab;}
+
+/* Toast */
+.toast{
+  position:fixed; left:50%; bottom:calc(96px + env(safe-area-inset-bottom)); z-index:80;
+  transform:translateX(-50%);
+  background:rgba(44,44,46,.96); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  color:#fff; font-size:15px; font-weight:500; padding:11px 20px; border-radius:22px;
+  box-shadow:0 8px 28px rgba(0,0,0,.5);
+  animation:toastin .3s cubic-bezier(.3,.9,.5,1);
+  white-space:nowrap;
 }
-.doc-item .mid{flex:1; min-width:0;}
-.doc-item .t{font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.doc-item .s{font-size:11.5px; color:var(--muted); margin-top:1px;}
-.doc-item .right{text-align:right; flex-shrink:0;}
-.doc-item .amt{font-weight:700; font-size:14px;}
-.badge{display:inline-block; font-size:9.5px; font-weight:600; letter-spacing:.3px; padding:2.5px 8px; border-radius:20px; margin-top:3px;}
-.b-entwurf{background:#2a2a2a; color:#bdbdbd;}
-.b-versendet{background:#2a2822; color:var(--warn);}
-.b-bezahlt,.b-angenommen{background:#1d2f24; color:var(--ok);}
-.b-ueberfaellig,.b-abgelehnt{background:#331f1c; color:var(--bad);}
-.empty{color:var(--faint); text-align:center; padding:40px 20px; font-size:13.5px;}
+.toast.out{opacity:0; transition:opacity .3s ease;}
+@keyframes toastin{from{opacity:0; transform:translateX(-50%) translateY(12px);}}
 
-.seg{display:flex; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:3px; margin-bottom:14px;}
-.seg button{flex:1; border:none; background:none; color:var(--muted); font-family:inherit; font-weight:600; font-size:13px; padding:9px 0; border-radius:9px; cursor:pointer;}
-.seg button.active{background:#fff; color:#0d0d0d;}
-
-label.f{display:block; font-size:11px; color:var(--muted); font-weight:500; margin:12px 0 5px; letter-spacing:.3px;}
-input.f,textarea.f,select.f{
-  width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:10px;
-  color:var(--text); font-family:inherit; font-size:15px; padding:11px 12px; outline:none; -webkit-appearance:none; appearance:none;
-}
-input.f:focus,textarea.f:focus,select.f:focus{border-color:#555;}
-textarea.f{resize:vertical; min-height:70px;}
-.grid2{display:grid; grid-template-columns:1fr 1fr; gap:0 10px;}
-.grid3{display:grid; grid-template-columns:2fr 1fr 1fr; gap:0 10px;}
-
-.item-row{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:8px; position:relative;}
-.item-row .rm{position:absolute; top:8px; right:8px; background:none; border:none; color:var(--faint); font-size:18px; cursor:pointer; padding:4px 8px;}
-.item-row .sum{font-size:12px; color:var(--muted); text-align:right; margin-top:8px;}
-.item-row input{background:var(--bg);}
-.totals{margin-top:14px; border-top:1px solid var(--line); padding-top:12px; text-align:right;}
-.totals .big{font-size:20px; font-weight:700;}
-.totals .small{font-size:11px; color:var(--muted); margin-top:3px;}
-.chk{display:flex; align-items:center; gap:10px; margin-top:14px; font-size:13.5px; cursor:pointer;}
-.chk input{width:20px; height:20px; accent-color:#fff;}
-.hint{font-size:11.5px; color:var(--faint); line-height:1.5; margin-top:10px;}
-.overdue-note{background:#2a1a17; border:1px solid #4a2a24; color:#f0a698; border-radius:10px; padding:10px 12px; font-size:12px; line-height:1.5; margin-top:10px;}
-
-/* ---------- Preview modal ---------- */
+/* ================= Preview (iOS sheet) ================= */
 #previewWrap{position:fixed; inset:0; z-index:50; background:#000; display:none; flex-direction:column;}
-#previewWrap.open{display:flex;}
-#previewBar{display:flex; gap:8px; align-items:center; padding:calc(10px + env(safe-area-inset-top)) 14px 10px; border-bottom:1px solid var(--line); background:#0d0d0d;}
+#previewWrap.open{display:flex; animation:sheetup .35s cubic-bezier(.32,.72,0,1);}
+@keyframes sheetup{from{transform:translateY(24px); opacity:.4;} to{transform:none; opacity:1;}}
+#previewBar{
+  display:flex; gap:8px; align-items:center;
+  padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+  border-bottom:.5px solid var(--sep);
+  background:rgba(0,0,0,.82); backdrop-filter:saturate(180%) blur(20px); -webkit-backdrop-filter:saturate(180%) blur(20px);
+}
 #previewBar .sp{flex:1;}
-#previewScroll{flex:1; overflow:auto; -webkit-overflow-scrolling:touch; padding:16px 8px 40px; background:#000;}
-.sheet-holder{margin:0 auto 18px; width:min(100%,760px);}
+#previewScroll{flex:1; overflow:auto; -webkit-overflow-scrolling:touch; padding:14px 12px calc(40px + env(safe-area-inset-bottom)); background:#000;}
+.sheet-holder{margin:0 auto 16px; width:100%; max-width:794px; overflow:hidden; border-radius:8px; box-shadow:0 4px 24px rgba(0,0,0,.6);}
 
-/* ---------- Document sheets (screen + print) ---------- */
+/* ================= Dokument (fixe A4-Breite, wird skaliert) ================= */
 .sheet{
-  background:#0d0d0d; color:#eaeaea; width:100%; aspect-ratio:auto;
-  padding:7% 7% 6%; font-family:'Poppins',sans-serif; border:1px solid #222; border-radius:6px;
+  background:#0d0d0d; color:#eaeaea;
+  width:210mm; min-height:297mm; padding:15mm 14mm 12mm;
+  font-family:var(--brand);
 }
 .sheet .doc-head{display:flex; justify-content:space-between; align-items:flex-start;}
-.sheet .logo{font-size:42px; font-weight:800; letter-spacing:1px; line-height:.9; color:#fff;}
-.sheet .tagline{font-size:10px; color:#9a9a9a; margin-top:6px; letter-spacing:.4px;}
+.sheet .logo{font-size:44px; font-weight:800; letter-spacing:1px; line-height:.9; color:#fff; font-family:var(--brand);}
+.sheet .tagline{font-size:10.5px; color:#9a9a9a; margin-top:7px; letter-spacing:.4px;}
 .sheet .doc-type{text-align:right;}
-.sheet .doc-type .dt{font-size:26px; font-weight:800; letter-spacing:.5px; color:#fff; text-transform:uppercase; line-height:1.05;}
-.sheet .doc-type .dn{font-size:11px; color:#9a9a9a; margin-top:6px;}
-.sheet hr.sep{border:none; border-top:1px solid #2e2e2e; margin:22px 0;}
-.sheet .addr-row{display:flex; justify-content:space-between; gap:20px;}
-.sheet .sender{font-size:8.5px; color:#6b6b6b; margin-bottom:6px; text-decoration:underline; text-underline-offset:2px;}
-.sheet .to{font-size:12.5px; line-height:1.55;}
+.sheet .doc-type .dt{font-size:27px; font-weight:800; letter-spacing:.5px; color:#fff; text-transform:uppercase; line-height:1.05;}
+.sheet .doc-type .dn{font-size:11.5px; color:#9a9a9a; margin-top:6px;}
+.sheet hr.sep{border:none; border-top:1px solid #2e2e2e; margin:24px 0;}
+.sheet .addr-row{display:flex; justify-content:space-between; gap:24px;}
+.sheet .sender{font-size:9px; color:#6b6b6b; margin-bottom:7px; text-decoration:underline; text-underline-offset:2px;}
+.sheet .to{font-size:13px; line-height:1.55;}
 .sheet .to .nm{font-weight:600;}
-.sheet .meta{font-size:10.5px; color:#bdbdbd; text-align:right; line-height:1.9; min-width:190px;}
+.sheet .meta{font-size:11px; color:#bdbdbd; text-align:right; line-height:1.95; min-width:200px;}
 .sheet .meta b{color:#fff; font-weight:600;}
-.sheet table.items{width:100%; border-collapse:collapse; margin-top:26px; font-size:11.5px;}
+.sheet table.items{width:100%; border-collapse:collapse; margin-top:28px; font-size:12px;}
 .sheet table.items th{
   text-align:left; font-size:9.5px; letter-spacing:.6px; text-transform:uppercase; color:#9a9a9a;
-  padding:9px 10px; background:#1a1a1a; border-bottom:1px solid #2e2e2e;
+  padding:10px 11px; background:#1a1a1a; border-bottom:1px solid #2e2e2e; white-space:nowrap;
 }
-.sheet table.items th.r, .sheet table.items td.r{text-align:right;}
-.sheet table.items td{padding:11px 10px; border-bottom:1px solid #222; vertical-align:top;}
-.sheet table.items td .idesc{color:#8a8a8a; font-size:10px; margin-top:2px; line-height:1.45;}
-.sheet .sumblock{margin-top:16px; display:flex; justify-content:flex-end;}
-.sheet .sumblock .in{min-width:46%;}
-.sheet .sumrow{display:flex; justify-content:space-between; font-size:11.5px; color:#bdbdbd; padding:5px 10px;}
-.sheet .sumrow.total{border-top:1px solid #2e2e2e; margin-top:6px; padding-top:11px; font-size:15px; font-weight:700; color:#fff;}
-.sheet .kust{font-size:9.5px; color:#8a8a8a; margin-top:10px; text-align:right;}
-.sheet .payblock{margin-top:30px; font-size:11px; line-height:1.7; color:#bdbdbd;}
+.sheet table.items th.r, .sheet table.items td.r{text-align:right; white-space:nowrap;}
+.sheet table.items td{padding:12px 11px; border-bottom:1px solid #222; vertical-align:top;}
+.sheet table.items td .idesc{color:#8a8a8a; font-size:10.5px; margin-top:3px; line-height:1.5;}
+.sheet .sumblock{margin-top:18px; display:flex; justify-content:flex-end;}
+.sheet .sumblock .in{min-width:52%;}
+.sheet .sumrow{display:flex; justify-content:space-between; gap:24px; font-size:12px; color:#bdbdbd; padding:5px 11px;}
+.sheet .sumrow.total{border-top:1px solid #2e2e2e; margin-top:6px; padding-top:12px; font-size:16px; font-weight:700; color:#fff;}
+.sheet .kust{font-size:10px; color:#8a8a8a; margin-top:10px; text-align:right;}
+.sheet .payblock{margin-top:32px; font-size:11.5px; line-height:1.75; color:#bdbdbd;}
 .sheet .payblock b{color:#fff; font-weight:600;}
-.sheet .notes{margin-top:18px; font-size:11px; color:#bdbdbd; line-height:1.6; white-space:pre-wrap;}
+.sheet .notes{margin-top:20px; font-size:11.5px; color:#bdbdbd; line-height:1.65; white-space:pre-wrap;}
 .sheet .foot{
-  margin-top:44px; padding-top:14px; border-top:1px solid #2e2e2e;
-  display:flex; justify-content:space-between; gap:14px; font-size:8.5px; color:#6b6b6b; line-height:1.7;
+  margin-top:48px; padding-top:15px; border-top:1px solid #2e2e2e;
+  display:flex; justify-content:space-between; gap:16px; font-size:9px; color:#6b6b6b; line-height:1.75;
 }
-/* AGB sheet */
+/* AGB */
 .sheet .agb-head{display:flex; justify-content:space-between; align-items:flex-start;}
-.sheet .agb-title{text-align:right; font-size:20px; font-weight:800; letter-spacing:.5px; line-height:1.1; text-transform:uppercase;}
-.sheet .agb-stand{font-size:9px; color:#6b6b6b; margin-top:5px; text-transform:none; font-weight:400; letter-spacing:0;}
-.sheet .agb-intro{font-size:10.5px; color:#bdbdbd; line-height:1.6; margin:18px 0 6px;}
-.sheet .agb-sec{background:#1a1a1a; border-radius:8px; padding:9px 14px; font-weight:700; font-size:12px; margin-top:16px;}
-.sheet .agb-cl{display:flex; gap:14px; font-size:10.5px; line-height:1.55; margin-top:9px; padding:0 4px;}
-.sheet .agb-cl .no{color:#6b6b6b; min-width:24px; flex-shrink:0;}
+.sheet .agb-title{text-align:right; font-size:21px; font-weight:800; letter-spacing:.5px; line-height:1.12; text-transform:uppercase;}
+.sheet .agb-stand{font-size:9.5px; color:#6b6b6b; margin-top:6px; text-transform:none; font-weight:400; letter-spacing:0;}
+.sheet .agb-intro{font-size:11px; color:#bdbdbd; line-height:1.6; margin:20px 0 6px;}
+.sheet .agb-sec{background:#1a1a1a; border-radius:8px; padding:10px 15px; font-weight:700; font-size:12.5px; margin-top:18px;}
+.sheet .agb-cl{display:flex; gap:15px; font-size:11px; line-height:1.6; margin-top:10px; padding:0 5px;}
+.sheet .agb-cl .no{color:#6b6b6b; min-width:26px; flex-shrink:0;}
 .sheet .agb-cl .tx{color:#d6d6d6;}
-.sheet .sig-note{font-size:10.5px; color:#bdbdbd; margin-top:30px;}
-.sheet .sigs{display:flex; gap:40px; margin-top:44px;}
+.sheet .sig-note{font-size:11px; color:#bdbdbd; margin-top:34px;}
+.sheet .sigs{display:flex; gap:44px; margin-top:48px;}
 .sheet .sigs .sig{flex:1;}
-.sheet .sigs .ln{border-top:1px solid #555; padding-top:5px; font-size:9px; color:#8a8a8a;}
-.sheet .sigs .ln + .ln{margin-top:38px;}
+.sheet .sigs .ln{border-top:1px solid #555; padding-top:6px; font-size:9.5px; color:#8a8a8a;}
+.sheet .sigs .ln + .ln{margin-top:42px;}
 
-/* ---------- Print ---------- */
+/* ================= Druck ================= */
 #printRoot{display:none;}
 @media print{
   body *{visibility:hidden;}
-  html,body{background:#0d0d0d !important;}
+  html,body{background:#0d0d0d !important; padding:0 !important; margin:0 !important;}
   #printRoot{display:block; position:absolute; left:0; top:0; width:100%;}
   #printRoot, #printRoot *{visibility:visible;}
-  .sheet{
-    border:none; border-radius:0; width:100%; min-height:100vh;
+  #printRoot .sheet{
+    width:210mm; min-height:297mm; transform:none !important;
     page-break-after:always; break-after:page;
     -webkit-print-color-adjust:exact; print-color-adjust:exact;
-    padding:14mm 14mm 12mm;
   }
-  .sheet:last-child{page-break-after:auto; break-after:auto;}
+  #printRoot .sheet:last-child{page-break-after:auto; break-after:auto;}
   header.app, nav.tabs, main, #previewWrap{display:none !important;}
 }
 @page{size:A4; margin:0;}
@@ -204,16 +291,14 @@ textarea.f{resize:vertical; min-height:70px;}
 <body>
 
 <header class="app">
-  <div class="brand">
-    <div class="logo">NKZS</div>
-    <div class="tag">Foto&nbsp;·&nbsp;Video&nbsp;·&nbsp;Social&nbsp;Media&nbsp;Management</div>
-  </div>
-  <button class="btn small" onclick="newDoc()">+ Neu</button>
+  <div class="logo-sm">NKZS<small>Foto · Video · Social Media</small></div>
+  <button class="icon-btn" onclick="newDoc()" aria-label="Neues Dokument">＋</button>
 </header>
 
 <main>
-  <!-- ===== Übersicht ===== -->
+  <!-- ===== Dokumente ===== -->
   <section class="view active" id="view-docs">
+    <h1 class="large-title">Dokumente</h1>
     <div class="stats">
       <div class="stat"><div class="v" id="stOpen">–</div><div class="l">Offen</div></div>
       <div class="stat"><div class="v" id="stYear">–</div><div class="l">Bezahlt <span id="stYearLbl"></span></div></div>
@@ -229,7 +314,8 @@ textarea.f{resize:vertical; min-height:70px;}
 
   <!-- ===== Editor ===== -->
   <section class="view" id="view-edit">
-    <h2 class="vt" id="editTitle">Neues Dokument</h2>
+    <button class="backbtn" onclick="showView('docs',null)">‹ Dokumente</button>
+    <h1 class="large-title" id="editTitle">Neues Dokument</h1>
     <div class="seg" id="typeSeg">
       <button data-t="rechnung">Rechnung</button>
       <button data-t="angebot">Angebot</button>
@@ -253,8 +339,9 @@ textarea.f{resize:vertical; min-height:70px;}
       <div id="overdueNote"></div>
     </div>
 
+    <div class="card-label">Kunde</div>
     <div class="card">
-      <label class="f" style="margin-top:0">Kunde wählen</label>
+      <label class="f" style="margin-top:2px">Kunde wählen</label>
       <select class="f" id="fCustomerSel"></select>
       <div class="grid2">
         <div><label class="f">Firma (optional)</label><input class="f" id="fcFirma"></div>
@@ -268,10 +355,10 @@ textarea.f{resize:vertical; min-height:70px;}
       <label class="f">E-Mail (optional)</label><input class="f" id="fcMail" type="email">
     </div>
 
+    <div class="card-label">Positionen</div>
     <div class="card">
-      <label class="f" style="margin-top:0">Positionen</label>
       <div id="itemsWrap"></div>
-      <button class="btn sec small" onclick="addItem()">+ Position hinzufügen</button>
+      <button class="btn sec small" onclick="addItem()">＋ Position hinzufügen</button>
       <div class="totals">
         <div class="big" id="tTotal">0,00 €</div>
         <div class="small" id="tNote">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</div>
@@ -279,31 +366,32 @@ textarea.f{resize:vertical; min-height:70px;}
     </div>
 
     <div class="card">
-      <label class="f" style="margin-top:0">Notiz auf dem Dokument (optional)</label>
+      <label class="f" style="margin-top:2px">Notiz auf dem Dokument (optional)</label>
       <textarea class="f" id="fNotes" placeholder="z. B. Vielen Dank für die Zusammenarbeit!"></textarea>
-      <label class="chk"><input type="checkbox" id="fAgb" checked> AGB als Seite 2 anhängen</label>
+      <label class="chk"><span>AGB als Seite 2 anhängen</span><input type="checkbox" id="fAgb" checked><span class="sw"></span></label>
     </div>
 
     <div class="btn-row">
-      <button class="btn" onclick="saveDoc(true)">Speichern & Vorschau</button>
-      <button class="btn sec" onclick="saveDoc(false)">Speichern</button>
-      <button class="btn sec" id="btnConvert" style="display:none" onclick="convertToInvoice()">→ In Rechnung umwandeln</button>
-      <button class="btn danger" id="btnDelete" style="display:none" onclick="deleteDoc()">Löschen</button>
+      <button class="btn block" onclick="saveDoc(true)">Speichern & Vorschau</button>
+      <button class="btn sec block" onclick="saveDoc(false)">Speichern</button>
+      <button class="btn sec block" id="btnConvert" style="display:none" onclick="convertToInvoice()">In Rechnung umwandeln</button>
+      <button class="btn danger block" id="btnDelete" style="display:none" onclick="deleteDoc()">Dokument löschen</button>
     </div>
   </section>
 
   <!-- ===== Kunden ===== -->
   <section class="view" id="view-customers">
-    <h2 class="vt">Kunden</h2>
+    <h1 class="large-title">Kunden</h1>
     <div id="custList"></div>
     <p class="hint">Kunden werden automatisch gespeichert, wenn du ein Dokument mit neuen Kundendaten anlegst.</p>
   </section>
 
   <!-- ===== Einstellungen ===== -->
   <section class="view" id="view-settings">
-    <h2 class="vt">Einstellungen</h2>
+    <h1 class="large-title">Einstellungen</h1>
+    <div class="card-label">Deine Daten</div>
     <div class="card">
-      <label class="f" style="margin-top:0">Name</label><input class="f" id="sName">
+      <label class="f" style="margin-top:2px">Name</label><input class="f" id="sName">
       <label class="f">Straße & Nr.</label><input class="f" id="sStreet">
       <div class="grid2">
         <div><label class="f">PLZ</label><input class="f" id="sZip"></div>
@@ -313,24 +401,25 @@ textarea.f{resize:vertical; min-height:70px;}
       <label class="f">E-Mail</label><input class="f" id="sMail">
       <label class="f">Webseite</label><input class="f" id="sWeb">
     </div>
+    <div class="card-label">Steuer & Bank</div>
     <div class="card">
-      <label class="f" style="margin-top:0">Steuernummer</label><input class="f" id="sTax">
+      <label class="f" style="margin-top:2px">Steuernummer</label><input class="f" id="sTax">
       <label class="f">Bank</label><input class="f" id="sBank">
       <label class="f">IBAN</label><input class="f" id="sIban">
       <label class="f">BIC</label><input class="f" id="sBic">
-      <label class="chk"><input type="checkbox" id="sKlein" checked> Kleinunternehmer (§ 19 UStG, keine USt)</label>
+      <label class="chk"><span>Kleinunternehmer (§ 19 UStG)</span><input type="checkbox" id="sKlein" checked><span class="sw"></span></label>
       <div class="grid2">
         <div><label class="f">USt-Satz % (falls später)</label><input class="f" id="sVat" inputmode="numeric"></div>
         <div><label class="f">Zahlungsziel (Tage)</label><input class="f" id="sDue" inputmode="numeric"></div>
       </div>
     </div>
     <div class="btn-row">
-      <button class="btn" onclick="saveSettings()">Einstellungen speichern</button>
+      <button class="btn block" onclick="saveSettings()">Einstellungen speichern</button>
     </div>
-    <div class="card" style="margin-top:20px">
-      <label class="f" style="margin-top:0">Datensicherung</label>
-      <p class="hint" style="margin-top:0">Alle Daten liegen nur auf diesem Gerät. Mach regelmäßig ein Backup!</p>
-      <div class="btn-row" style="margin-top:8px">
+    <div class="card-label" style="margin-top:24px">Datensicherung</div>
+    <div class="card">
+      <p class="hint" style="margin:2px 0 12px">Alle Daten liegen nur auf diesem Gerät. Mach regelmäßig ein Backup!</p>
+      <div class="btn-row h" style="margin-top:0">
         <button class="btn sec small" onclick="exportData()">Backup exportieren</button>
         <button class="btn sec small" onclick="document.getElementById('importFile').click()">Backup importieren</button>
         <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
@@ -341,15 +430,15 @@ textarea.f{resize:vertical; min-height:70px;}
 
 <nav class="tabs">
   <button class="active" data-v="docs" onclick="showView('docs',this)">
-    <svg fill="none" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M7 3h7l5 5v11a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
+    <svg fill="none" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M7 3h7l5 5v11a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
     Dokumente
   </button>
   <button data-v="customers" onclick="showView('customers',this)">
-    <svg fill="none" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-2.13a4 4 0 10-4-6.9 4 4 0 004 6.9zm6-3a3 3 0 10-2-5.6"/></svg>
+    <svg fill="none" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-2.13a4 4 0 10-4-6.9 4 4 0 004 6.9zm6-3a3 3 0 10-2-5.6"/></svg>
     Kunden
   </button>
   <button data-v="settings" onclick="showView('settings',this)">
-    <svg fill="none" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.3 4.3a1.7 1.7 0 013.4 0 1.7 1.7 0 002.6 1.1 1.7 1.7 0 012.4 2.4 1.7 1.7 0 001 2.5 1.7 1.7 0 010 3.4 1.7 1.7 0 00-1 2.5 1.7 1.7 0 01-2.4 2.4 1.7 1.7 0 00-2.6 1 1.7 1.7 0 01-3.4 0 1.7 1.7 0 00-2.6-1 1.7 1.7 0 01-2.4-2.4 1.7 1.7 0 00-1-2.5 1.7 1.7 0 010-3.4 1.7 1.7 0 001-2.5 1.7 1.7 0 012.4-2.4 1.7 1.7 0 002.6-1.1z"/><circle cx="12" cy="12" r="3" stroke-linecap="round"/></svg>
+    <svg fill="none" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.3 4.3a1.7 1.7 0 013.4 0 1.7 1.7 0 002.6 1.1 1.7 1.7 0 012.4 2.4 1.7 1.7 0 001 2.5 1.7 1.7 0 010 3.4 1.7 1.7 0 00-1 2.5 1.7 1.7 0 01-2.4 2.4 1.7 1.7 0 00-2.6 1 1.7 1.7 0 01-3.4 0 1.7 1.7 0 00-2.6-1 1.7 1.7 0 01-2.4-2.4 1.7 1.7 0 00-1-2.5 1.7 1.7 0 010-3.4 1.7 1.7 0 001-2.5 1.7 1.7 0 012.4-2.4 1.7 1.7 0 002.6-1.1z"/><circle cx="12" cy="12" r="3" stroke-linecap="round"/></svg>
     Einstellungen
   </button>
 </nav>
@@ -359,7 +448,7 @@ textarea.f{resize:vertical; min-height:70px;}
   <div id="previewBar">
     <button class="btn sec small" onclick="closePreview()">‹ Zurück</button>
     <div class="sp"></div>
-    <button class="btn small" onclick="doPrint()">PDF erstellen / Drucken</button>
+    <button class="btn small" onclick="doPrint()">PDF erstellen</button>
   </div>
   <div id="previewScroll"></div>
 </div>
@@ -433,9 +522,7 @@ function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function parseNum(v){ if(typeof v==='number') return v; v=String(v||'').replace(/\./g,'').replace(',','.'); const n=parseFloat(v); return isNaN(n)?0:n; }
 function docTotal(d){ return (d.items||[]).reduce((s,i)=>s + parseNum(i.qty)*parseNum(i.price), 0); }
 function dueDate(d){ const dt = new Date(d.date+'T00:00:00'); dt.setDate(dt.getDate() + (state.settings.due||24)); return dt; }
-function isOverdue(d){
-  return d.type==='rechnung' && d.status==='versendet' && new Date() > dueDate(d);
-}
+function isOverdue(d){ return d.type==='rechnung' && d.status==='versendet' && new Date() > dueDate(d); }
 function overdueDays(d){ return Math.floor((Date.now() - dueDate(d).getTime()) / 86400000); }
 function nextNumber(type){
   const year = new Date().getFullYear();
@@ -453,21 +540,27 @@ const STATUSES = {
   angebot: [['entwurf','Entwurf'],['versendet','Versendet'],['angenommen','Angenommen'],['abgelehnt','Abgelehnt']],
   rechnung: [['entwurf','Entwurf'],['versendet','Versendet'],['bezahlt','Bezahlt']]
 };
+function toast(msg){
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.classList.add('out'), 1500);
+  setTimeout(()=>t.remove(), 1900);
+}
 
 /* =================== Navigation =================== */
 function showView(v, btn){
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
   document.getElementById('view-'+v).classList.add('active');
   document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
-  if(btn) btn.classList.add(btn.dataset.v===v?'active':'active');
-  else document.querySelector(`nav.tabs button[data-v="${v}"]`)?.classList.add('active');
+  document.querySelector(`nav.tabs button[data-v="${v}"]`)?.classList.add('active');
   if(v==='docs') renderList();
   if(v==='customers') renderCustomers();
   if(v==='settings') fillSettings();
   window.scrollTo(0,0);
 }
 
-/* =================== Übersicht =================== */
+/* =================== Dokumente =================== */
 let filter = 'alle';
 document.getElementById('filterSeg').addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b) return;
@@ -496,11 +589,11 @@ function renderList(){
     .sort((a,b) => (b.date||'').localeCompare(a.date||'') || (b.number||'').localeCompare(a.number||''));
   const el = document.getElementById('docList');
   if(!docs.length){
-    el.innerHTML = '<div class="empty">Noch keine Dokumente.<br>Tippe oben auf „+ Neu", um dein erstes Angebot oder deine erste Rechnung zu erstellen.</div>';
+    el.innerHTML = '<div class="empty"><div class="big">📄</div>Noch keine Dokumente.<br>Tippe oben auf ＋, um dein erstes<br>Angebot oder deine erste Rechnung zu erstellen.</div>';
     return;
   }
-  el.innerHTML = docs.map(d=>`
-    <div class="doc-item" onclick="editDoc('${d.id}')">
+  el.innerHTML = '<div class="list">' + docs.map(d=>`
+    <div class="row" onclick="editDoc('${d.id}')">
       <div class="ic">${d.type==='rechnung'?'RE':'AN'}</div>
       <div class="mid">
         <div class="t">${esc(d.customer?.firma || d.customer?.name || 'Ohne Kunde')}</div>
@@ -510,11 +603,12 @@ function renderList(){
         <div class="amt">${fmt(docTotal(d))}</div>
         <span class="badge b-${statusOf(d)}">${statusLabel(d)}</span>
       </div>
-    </div>`).join('');
+      <div class="chev">›</div>
+    </div>`).join('') + '</div>';
 }
 
 /* =================== Editor =================== */
-let editing = null; // doc object being edited
+let editing = null;
 document.getElementById('typeSeg').addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b) return;
   setType(b.dataset.t, true);
@@ -552,7 +646,7 @@ function editDoc(id){
   document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
 }
 function fillEditor(){
-  document.getElementById('editTitle').textContent = editing.isNew ? 'Neues Dokument' : (editing.number || 'Dokument bearbeiten');
+  document.getElementById('editTitle').textContent = editing.isNew ? 'Neues Dokument' : (editing.number || 'Bearbeiten');
   document.getElementById('fNumber').value = editing.number || nextNumber(editing.type);
   document.getElementById('fDate').value = editing.date;
   document.getElementById('fService').value = editing.service||'';
@@ -562,10 +656,10 @@ function fillEditor(){
   const c = editing.customer||{};
   fcFirma.value=c.firma||''; fcName.value=c.name||''; fcStreet.value=c.street||'';
   fcZip.value=c.zip||''; fcCity.value=c.city||''; fcMail.value=c.mail||'';
-  // customer dropdown
   const sel = document.getElementById('fCustomerSel');
   sel.innerHTML = '<option value="">– Neuer Kunde / manuell –</option>' +
     state.customers.map((k,i)=>`<option value="${i}">${esc(k.firma||k.name)}</option>`).join('');
+  sel.value = '';
   sel.onchange = ()=>{
     if(sel.value==='') return;
     const k = state.customers[+sel.value];
@@ -585,25 +679,25 @@ function renderOverdueNote(){
   const d = {...editing, date: document.getElementById('fDate').value, status: document.getElementById('fStatus').value, type: editing.type};
   if(editing.type==='rechnung' && isOverdue(d)){
     const days = overdueDays(d);
-    el.innerHTML = `<div class="overdue-note">⚠️ Diese Rechnung ist seit <b>${days} Tag${days===1?'':'en'}</b> überfällig (Zahlungsziel: ${deDate(dueDate(d).toISOString().slice(0,10))}).<br>Laut deinen AGB § 2.2 wären das <b>${fmt(days*50)}</b> Verzugsgebühr (50 € / Kalendertag).</div>`;
+    el.innerHTML = `<div class="overdue-note">Diese Rechnung ist seit <b>${days} Tag${days===1?'':'en'}</b> überfällig (Zahlungsziel: ${deDate(dueDate(d).toISOString().slice(0,10))}).<br>Laut AGB § 2.2 wären das <b>${fmt(days*50)}</b> Verzugsgebühr (50 € / Kalendertag).</div>`;
   } else el.innerHTML='';
 }
 function renderItems(){
   const w = document.getElementById('itemsWrap');
   w.innerHTML = editing.items.map((it,i)=>`
     <div class="item-row">
-      ${editing.items.length>1?`<button class="rm" onclick="rmItem(${i})">×</button>`:''}
-      <label class="f" style="margin-top:0">Bezeichnung</label>
+      ${editing.items.length>1?`<button class="rm" onclick="rmItem(${i})">✕</button>`:''}
+      <label class="f" style="margin-top:2px">Bezeichnung</label>
       <input class="f" value="${esc(it.desc)}" oninput="uItem(${i},'desc',this.value)" placeholder="z. B. Videoproduktion Imagefilm">
       <label class="f">Beschreibung (optional)</label>
-      <input class="f" value="${esc(it.detail||'')}" oninput="uItem(${i},'detail',this.value)" placeholder="z. B. Dreh, Schnitt, Colorgrading, 1 Korrekturschleife">
+      <input class="f" value="${esc(it.detail||'')}" oninput="uItem(${i},'detail',this.value)" placeholder="z. B. Dreh, Schnitt, Colorgrading">
       <div class="grid3">
         <div><label class="f">Einheit</label>
           <select class="f" onchange="uItem(${i},'unit',this.value)">
             ${['pauschal','Stk.','Std.','Tag'].map(u=>`<option ${it.unit===u?'selected':''}>${u}</option>`).join('')}
           </select></div>
         <div><label class="f">Menge</label><input class="f" inputmode="decimal" value="${esc(it.qty)}" oninput="uItem(${i},'qty',this.value)"></div>
-        <div><label class="f">Einzelpreis €</label><input class="f" inputmode="decimal" value="${esc(it.price)}" oninput="uItem(${i},'price',this.value)"></div>
+        <div><label class="f">Preis €</label><input class="f" inputmode="decimal" value="${esc(it.price)}" oninput="uItem(${i},'price',this.value)"></div>
       </div>
       <div class="sum">= ${fmt(parseNum(it.qty)*parseNum(it.price))}</div>
     </div>`).join('');
@@ -651,7 +745,6 @@ function saveDoc(preview){
   const {isNew, ...doc} = editing;
   const idx = state.docs.findIndex(d=>d.id===doc.id);
   if(idx>=0) state.docs[idx]=doc; else state.docs.push(doc);
-  // Kunde merken/aktualisieren
   const c = doc.customer;
   const key = (c.firma||c.name).toLowerCase();
   const ci = state.customers.findIndex(k=>(k.firma||k.name).toLowerCase()===key);
@@ -659,12 +752,12 @@ function saveDoc(preview){
   save();
   editing.isNew = false;
   if(preview) openPreview(doc);
-  else { showView('docs', null); }
+  else { toast('Gespeichert'); showView('docs', null); }
 }
 function deleteDoc(){
   if(!confirm('Dokument wirklich löschen?')) return;
   state.docs = state.docs.filter(d=>d.id!==editing.id);
-  save(); showView('docs', null);
+  save(); toast('Gelöscht'); showView('docs', null);
 }
 function convertToInvoice(){
   collectEditor();
@@ -674,21 +767,22 @@ function convertToInvoice(){
   inv.service = ''; inv.isNew = true;
   editing = inv; fillEditor();
   window.scrollTo(0,0);
+  toast('Als Rechnung übernommen');
 }
 
 /* =================== Kunden =================== */
 function renderCustomers(){
   const el = document.getElementById('custList');
-  if(!state.customers.length){ el.innerHTML='<div class="empty">Noch keine Kunden gespeichert.</div>'; return; }
-  el.innerHTML = state.customers.map((k,i)=>`
-    <div class="doc-item">
+  if(!state.customers.length){ el.innerHTML='<div class="empty"><div class="big">👥</div>Noch keine Kunden gespeichert.</div>'; return; }
+  el.innerHTML = '<div class="list">' + state.customers.map((k,i)=>`
+    <div class="row" style="cursor:default">
       <div class="ic">${esc((k.firma||k.name||'?').slice(0,2).toUpperCase())}</div>
       <div class="mid">
         <div class="t">${esc(k.firma||k.name)}</div>
         <div class="s">${esc([k.name!==k.firma?k.name:'', k.city].filter(Boolean).join(' · '))}</div>
       </div>
       <button class="btn danger small" onclick="delCustomer(${i});event.stopPropagation()">Löschen</button>
-    </div>`).join('');
+    </div>`).join('') + '</div>';
 }
 function delCustomer(i){
   if(!confirm('Kunde löschen? (Bestehende Dokumente bleiben unverändert)')) return;
@@ -710,7 +804,7 @@ function saveSettings(){
     tax:sTax.value.trim(), bank:sBank.value.trim(), iban:sIban.value.trim(), bic:sBic.value.trim(),
     klein:sKlein.checked, vat:parseNum(sVat.value)||19, due:parseInt(sDue.value)||24
   };
-  save(); alert('Gespeichert ✓');
+  save(); toast('Einstellungen gespeichert');
 }
 function exportData(){
   const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
@@ -726,13 +820,13 @@ function importData(ev){
     try{
       const s = JSON.parse(r.result);
       if(!s.docs || !s.settings) throw 0;
-      state = s; save(); alert('Backup importiert ✓'); showView('docs', null);
+      state = s; save(); toast('Backup importiert'); showView('docs', null);
     }catch(e){ alert('Datei konnte nicht gelesen werden.'); }
   };
   r.readAsText(f);
 }
 
-/* =================== Dokument-HTML (PDF) =================== */
+/* =================== Dokument-HTML =================== */
 function docSheetHTML(d){
   const s = state.settings;
   const net = docTotal(d);
@@ -798,7 +892,7 @@ function docSheetHTML(d){
       </div>
     </div>
     <table class="items">
-      <thead><tr><th style="width:5%">Pos.</th><th>Bezeichnung</th><th class="r" style="width:14%">Menge</th><th class="r" style="width:16%">Einzelpreis</th><th class="r" style="width:16%">Gesamt</th></tr></thead>
+      <thead><tr><th style="width:6%">Pos.</th><th>Bezeichnung</th><th class="r" style="width:15%">Menge</th><th class="r" style="width:16%">Einzelpreis</th><th class="r" style="width:16%">Gesamt</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <div class="sumblock"><div class="in">${sums}</div></div>
@@ -819,7 +913,7 @@ function agbSheetsHTML(){
   const head = `
     <div class="agb-head">
       <div>
-        <div class="logo" style="font-size:34px">NKZS</div>
+        <div class="logo" style="font-size:36px">NKZS</div>
         <div class="tagline">Foto&nbsp;·&nbsp;Video&nbsp;·&nbsp;Social&nbsp;Media&nbsp;Management</div>
       </div>
       <div class="agb-title">Allgemeine<br>Geschäftsbedingungen<div class="agb-stand">Stand: ${AGB.stand}</div></div>
@@ -843,20 +937,31 @@ function fullDocHTML(d){
 let previewDoc = null;
 function openPreview(d){
   previewDoc = d;
-  const html = fullDocHTML(d);
-  document.getElementById('previewScroll').innerHTML =
-    html.replaceAll('<div class="sheet">','<div class="sheet-holder"><div class="sheet">').replaceAll('</div><!--sheet-->','') // simple wrap below instead
-  ;
-  // wrap each sheet for scroll layout
   const scroll = document.getElementById('previewScroll');
-  scroll.innerHTML = html;
+  scroll.innerHTML = fullDocHTML(d);
   scroll.querySelectorAll('.sheet').forEach(sh=>{
     const holder = document.createElement('div'); holder.className='sheet-holder';
     sh.parentNode.insertBefore(holder, sh); holder.appendChild(sh);
   });
   document.getElementById('previewWrap').classList.add('open');
   document.body.style.overflow='hidden';
+  scroll.scrollTop = 0;
+  requestAnimationFrame(scaleSheets);
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=>scaleSheets());
 }
+/* Skaliert die A4-Seiten exakt auf die Bildschirmbreite (wie eine PDF-Vorschau) */
+function scaleSheets(){
+  document.querySelectorAll('#previewScroll .sheet-holder').forEach(h=>{
+    const sh = h.querySelector('.sheet'); if(!sh) return;
+    sh.style.transform = 'none';
+    const w = sh.offsetWidth || 794;
+    const scale = Math.min(1, h.clientWidth / w);
+    sh.style.transformOrigin = 'top left';
+    sh.style.transform = `scale(${scale})`;
+    h.style.height = (sh.offsetHeight * scale) + 'px';
+  });
+}
+window.addEventListener('resize', ()=>{ if(document.getElementById('previewWrap').classList.contains('open')) scaleSheets(); });
 function closePreview(){
   document.getElementById('previewWrap').classList.remove('open');
   document.body.style.overflow='';
