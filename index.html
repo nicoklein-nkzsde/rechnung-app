@@ -202,6 +202,18 @@ select.f{
 .toast.out{opacity:0; transition:opacity .3s ease;}
 @keyframes toastin{from{opacity:0; transform:translateX(-50%) translateY(12px);}}
 
+/* Belege */
+.att-row{display:flex; align-items:center; gap:11px; background:var(--card2); border-radius:10px; padding:9px 11px; margin-bottom:8px; cursor:pointer;}
+.att-row .ath{width:36px; height:36px; border-radius:8px; object-fit:cover; background:#000; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:16px;}
+.att-row .an{flex:1; min-width:0; font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.att-row .ad{color:var(--label3); font-size:12px; font-weight:400; margin-top:1px;}
+.att-row .rmatt{width:26px; height:26px; border-radius:50%; background:rgba(120,120,128,.28); border:none; color:var(--label2); font-size:13px; cursor:pointer; flex-shrink:0; line-height:1;}
+#lightbox{position:fixed; inset:0; z-index:70; background:rgba(0,0,0,.96); display:none; flex-direction:column;}
+#lightbox.open{display:flex;}
+#lightbox .lb-bar{display:flex; gap:8px; align-items:center; padding:calc(10px + env(safe-area-inset-top)) 14px 10px;}
+#lightbox .lb-bar .sp{flex:1;}
+#lightbox img{flex:1; min-height:0; width:100%; object-fit:contain; padding:0 8px calc(20px + env(safe-area-inset-bottom));}
+
 /* ================= Preview (iOS sheet) ================= */
 #previewWrap{position:fixed; inset:0; z-index:50; background:#000; display:none; flex-direction:column;}
 #previewWrap.open{display:flex; animation:sheetup .35s cubic-bezier(.32,.72,0,1);}
@@ -371,10 +383,19 @@ select.f{
       <label class="chk"><span>AGB als Seite 2 anhängen</span><input type="checkbox" id="fAgb" checked><span class="sw"></span></label>
     </div>
 
+    <div class="card-label">Belege</div>
+    <div class="card">
+      <div id="attList"></div>
+      <button class="btn sec small" onclick="document.getElementById('attFile').click()">＋ Beleg hinzufügen</button>
+      <input type="file" id="attFile" accept="image/*,application/pdf" multiple style="display:none" onchange="addAttachments(event)">
+      <p class="hint">z. B. Screenshot der Zahlung aus Trade Republic. Wird in der App gespeichert und mit zu Google Drive hochgeladen.</p>
+    </div>
+
     <div class="btn-row">
       <button class="btn block" onclick="saveDoc(true)">Speichern & Vorschau</button>
       <button class="btn sec block" onclick="saveDoc(false)">Speichern</button>
       <button class="btn sec block" id="btnConvert" style="display:none" onclick="convertToInvoice()">In Rechnung umwandeln</button>
+      <button class="btn sec block" id="btnDrive" style="display:none" onclick="manualDriveUpload()">☁ Jetzt zu Google Drive hochladen</button>
       <button class="btn danger block" id="btnDelete" style="display:none" onclick="deleteDoc()">Dokument löschen</button>
     </div>
   </section>
@@ -413,6 +434,16 @@ select.f{
         <div><label class="f">Zahlungsziel (Tage)</label><input class="f" id="sDue" inputmode="numeric"></div>
       </div>
     </div>
+    <div class="card-label">Google Drive</div>
+    <div class="card">
+      <label class="f" style="margin-top:2px">Client-ID (aus der Google Cloud Console)</label>
+      <input class="f" id="sClientId" placeholder="xxxxx.apps.googleusercontent.com">
+      <label class="chk"><span>Automatisch hochladen bei „Bezahlt"</span><input type="checkbox" id="sDriveAuto" checked><span class="sw"></span></label>
+      <div class="btn-row h" style="margin-top:14px">
+        <button class="btn sec small" onclick="connectDrive()">Mit Google Drive verbinden</button>
+      </div>
+      <p class="hint" id="driveStatus">Nicht eingerichtet.</p>
+    </div>
     <div class="btn-row">
       <button class="btn block" onclick="saveSettings()">Einstellungen speichern</button>
     </div>
@@ -448,9 +479,19 @@ select.f{
   <div id="previewBar">
     <button class="btn sec small" onclick="closePreview()">‹ Zurück</button>
     <div class="sp"></div>
-    <button class="btn small" onclick="doPrint()">PDF erstellen</button>
+    <button class="btn sec small" onclick="doPrint()">Drucken</button>
+    <button class="btn small" onclick="sharePDF()">Teilen / PDF</button>
   </div>
   <div id="previewScroll"></div>
+</div>
+
+<div id="lightbox">
+  <div class="lb-bar">
+    <button class="btn sec small" onclick="closeLightbox()">‹ Zurück</button>
+    <div class="sp"></div>
+    <button class="btn small" onclick="shareAttachment()">Teilen</button>
+  </div>
+  <img id="lbImg" alt="Beleg">
 </div>
 
 <div id="printRoot"></div>
@@ -496,7 +537,8 @@ const defaultState = {
     name:'Nico Elia Klein', street:'', zip:'', city:'Biebertal',
     phone:'', mail:'nicoklein@nkzs.de', web:'nkzs.de',
     tax:'', bank:'', iban:'', bic:'',
-    klein:true, vat:19, due:24
+    klein:true, vat:19, due:24,
+    clientId:'', driveAuto:true
   },
   customers: [],
   docs: []
@@ -548,6 +590,30 @@ function toast(msg){
   setTimeout(()=>t.remove(), 1900);
 }
 
+/* ===== Datei-Speicher (IndexedDB) für Belege ===== */
+let _db = null;
+function idb(){
+  if(_db) return Promise.resolve(_db);
+  return new Promise((res,rej)=>{
+    const rq = indexedDB.open('nkzs-files', 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore('files');
+    rq.onsuccess = () => { _db = rq.result; res(_db); };
+    rq.onerror = () => rej(rq.error);
+  });
+}
+function idbPut(id, blob){ return idb().then(db=>new Promise((res,rej)=>{ const tx=db.transaction('files','readwrite'); tx.objectStore('files').put(blob,id); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); })); }
+function idbGet(id){ return idb().then(db=>new Promise((res,rej)=>{ const rq=db.transaction('files').objectStore('files').get(id); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>rej(rq.error); })); }
+function idbDel(id){ return idb().then(db=>new Promise((res,rej)=>{ const tx=db.transaction('files','readwrite'); tx.objectStore('files').delete(id); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); })); }
+
+function loadScript(src){
+  return new Promise((res,rej)=>{
+    if(document.querySelector(`script[src="${src}"]`)) return res();
+    const s = document.createElement('script'); s.src = src;
+    s.onload = res; s.onerror = ()=>rej(new Error('Laden fehlgeschlagen: '+src));
+    document.head.appendChild(s);
+  });
+}
+
 /* =================== Navigation =================== */
 function showView(v, btn){
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
@@ -597,7 +663,7 @@ function renderList(){
       <div class="ic">${d.type==='rechnung'?'RE':'AN'}</div>
       <div class="mid">
         <div class="t">${esc(d.customer?.firma || d.customer?.name || 'Ohne Kunde')}</div>
-        <div class="s">${esc(d.number)} · ${deDate(d.date)}</div>
+        <div class="s">${esc(d.number)} · ${deDate(d.date)}${d.drive?' · ☁':''}${(d.attachments&&d.attachments.length)?' · 📎'+d.attachments.length:''}</div>
       </div>
       <div class="right">
         <div class="amt">${fmt(docTotal(d))}</div>
@@ -630,7 +696,7 @@ function newDoc(){
     service:'', valid:'', status:'entwurf',
     customer:{firma:'',name:'',street:'',zip:'',city:'',mail:''},
     items:[{desc:'',detail:'',qty:1,unit:'pauschal',price:''}],
-    notes:'', agb:true, isNew:true
+    notes:'', agb:true, attachments:[], isNew:true
   };
   const v = new Date(); v.setDate(v.getDate()+14);
   editing.valid = v.toISOString().slice(0,10);
@@ -671,6 +737,9 @@ function fillEditor(){
   document.getElementById('btnDelete').style.display = editing.isNew ? 'none':'';
   document.getElementById('btnConvert').style.display = (!editing.isNew && editing.type==='angebot') ? '':'none';
   renderItems();
+  editing.attachments = editing.attachments || [];
+  renderAttachments();
+  document.getElementById('btnDrive').style.display = state.settings.clientId ? '' : 'none';
   document.getElementById('fStatus').onchange = renderOverdueNote;
   document.getElementById('fDate').onchange = renderOverdueNote;
 }
@@ -742,6 +811,7 @@ function saveDoc(preview){
   collectEditor();
   if(!editing.customer.name && !editing.customer.firma){ alert('Bitte mindestens Name oder Firma des Kunden angeben.'); return; }
   if(!editing.items.some(i=>i.desc.trim())){ alert('Bitte mindestens eine Position mit Bezeichnung angeben.'); return; }
+  const prevStatus = state.docs.find(x=>x.id===editing.id)?.status;
   const {isNew, ...doc} = editing;
   const idx = state.docs.findIndex(d=>d.id===doc.id);
   if(idx>=0) state.docs[idx]=doc; else state.docs.push(doc);
@@ -751,11 +821,15 @@ function saveDoc(preview){
   if(ci>=0) state.customers[ci]=c; else state.customers.push(c);
   save();
   editing.isNew = false;
+  // Automatischer Drive-Upload bei Statuswechsel auf Bezahlt / Angenommen
+  const done = (doc.type==='rechnung' && doc.status==='bezahlt') || (doc.type==='angebot' && doc.status==='angenommen');
+  if(done && prevStatus!==doc.status && state.settings.driveAuto && state.settings.clientId) uploadDocToDrive(doc);
   if(preview) openPreview(doc);
   else { toast('Gespeichert'); showView('docs', null); }
 }
 function deleteDoc(){
   if(!confirm('Dokument wirklich löschen?')) return;
+  (editing.attachments||[]).forEach(a=>idbDel(a.id));
   state.docs = state.docs.filter(d=>d.id!==editing.id);
   save(); toast('Gelöscht'); showView('docs', null);
 }
@@ -764,7 +838,7 @@ function convertToInvoice(){
   const inv = structuredClone(editing);
   inv.id = uid(); inv.type='rechnung'; inv.status='entwurf';
   inv.number = nextNumber('rechnung'); inv.date = todayISO();
-  inv.service = ''; inv.isNew = true;
+  inv.service = ''; inv.attachments = []; inv.isNew = true;
   editing = inv; fillEditor();
   window.scrollTo(0,0);
   toast('Als Rechnung übernommen');
@@ -796,18 +870,30 @@ function fillSettings(){
   sPhone.value=s.phone; sMail.value=s.mail; sWeb.value=s.web;
   sTax.value=s.tax; sBank.value=s.bank; sIban.value=s.iban; sBic.value=s.bic;
   sKlein.checked=s.klein; sVat.value=s.vat; sDue.value=s.due;
+  sClientId.value=s.clientId||''; sDriveAuto.checked=s.driveAuto!==false;
+  updateDriveStatus();
 }
 function saveSettings(){
   state.settings = {
     name:sName.value.trim(), street:sStreet.value.trim(), zip:sZip.value.trim(), city:sCity.value.trim(),
     phone:sPhone.value.trim(), mail:sMail.value.trim(), web:sWeb.value.trim(),
     tax:sTax.value.trim(), bank:sBank.value.trim(), iban:sIban.value.trim(), bic:sBic.value.trim(),
-    klein:sKlein.checked, vat:parseNum(sVat.value)||19, due:parseInt(sDue.value)||24
+    klein:sKlein.checked, vat:parseNum(sVat.value)||19, due:parseInt(sDue.value)||24,
+    clientId:sClientId.value.trim(), driveAuto:sDriveAuto.checked
   };
-  save(); toast('Einstellungen gespeichert');
+  save(); updateDriveStatus(); toast('Einstellungen gespeichert');
 }
-function exportData(){
-  const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+function blobToB64(blob){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(blob); }); }
+async function exportData(){
+  toast('Backup wird erstellt …');
+  const out = structuredClone(state);
+  for(const d of out.docs){
+    for(const a of (d.attachments||[])){
+      const blob = await idbGet(a.id);
+      if(blob) a.data = await blobToB64(blob);
+    }
+  }
+  const blob = new Blob([JSON.stringify(out)],{type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'nkzs-backup-'+todayISO()+'.json';
@@ -816,14 +902,226 @@ function exportData(){
 function importData(ev){
   const f = ev.target.files[0]; if(!f) return;
   const r = new FileReader();
-  r.onload = () => {
+  r.onload = async () => {
     try{
       const s = JSON.parse(r.result);
       if(!s.docs || !s.settings) throw 0;
-      state = s; save(); toast('Backup importiert'); showView('docs', null);
+      for(const d of s.docs){
+        for(const a of (d.attachments||[])){
+          if(a.data){
+            const blob = await (await fetch(a.data)).blob();
+            await idbPut(a.id, blob);
+            delete a.data;
+          }
+        }
+      }
+      state = {...structuredClone(defaultState), ...s, settings:{...structuredClone(defaultState.settings), ...(s.settings||{})}};
+      save(); toast('Backup importiert'); showView('docs', null);
     }catch(e){ alert('Datei konnte nicht gelesen werden.'); }
   };
   r.readAsText(f);
+}
+
+/* =================== Belege =================== */
+function fmtSize(b){ return b>1048576 ? (b/1048576).toFixed(1)+' MB' : Math.max(1,Math.round(b/1024))+' KB'; }
+async function addAttachments(ev){
+  const files = [...ev.target.files]; ev.target.value = '';
+  for(const f of files){
+    if(f.size > 15*1024*1024){ alert(f.name+' ist zu groß (max. 15 MB).'); continue; }
+    const id = uid();
+    try{ await idbPut(id, f); }catch(e){ alert('Beleg konnte nicht gespeichert werden.'); continue; }
+    (editing.attachments = editing.attachments||[]).push({id, name:f.name||('Beleg-'+id), type:f.type||'', size:f.size});
+  }
+  renderAttachments();
+  if(files.length) toast(files.length===1?'Beleg hinzugefügt':files.length+' Belege hinzugefügt');
+}
+async function renderAttachments(){
+  const el = document.getElementById('attList');
+  const atts = editing?.attachments||[];
+  if(!atts.length){ el.innerHTML=''; return; }
+  const rows = await Promise.all(atts.map(async (a,i)=>{
+    let thumb = '<div class="ath">📄</div>';
+    if((a.type||'').startsWith('image/')){
+      const blob = await idbGet(a.id);
+      if(blob) thumb = `<img class="ath" src="${URL.createObjectURL(blob)}" alt="">`;
+    }
+    return `<div class="att-row" onclick="openAttachment(${i})">${thumb}
+      <div class="an">${esc(a.name)}<div class="ad">${fmtSize(a.size||0)}</div></div>
+      <button class="rmatt" onclick="rmAttachment(${i});event.stopPropagation()">✕</button></div>`;
+  }));
+  el.innerHTML = rows.join('');
+}
+async function rmAttachment(i){
+  if(!confirm('Beleg löschen?')) return;
+  const a = editing.attachments[i];
+  await idbDel(a.id);
+  editing.attachments.splice(i,1);
+  renderAttachments();
+}
+async function openAttachment(i){
+  const a = editing.attachments[i];
+  const blob = await idbGet(a.id);
+  if(!blob){ alert('Datei nicht gefunden.'); return; }
+  if((a.type||'').startsWith('image/')){
+    const lb = document.getElementById('lightbox');
+    document.getElementById('lbImg').src = URL.createObjectURL(blob);
+    lb.dataset.idx = i;
+    lb.classList.add('open');
+  } else {
+    const file = new File([blob], a.name, {type:a.type||blob.type});
+    if(navigator.canShare && navigator.canShare({files:[file]})) navigator.share({files:[file]}).catch(()=>{});
+    else window.open(URL.createObjectURL(blob));
+  }
+}
+function closeLightbox(){ document.getElementById('lightbox').classList.remove('open'); }
+async function shareAttachment(){
+  const i = +document.getElementById('lightbox').dataset.idx;
+  const a = editing.attachments[i];
+  const blob = await idbGet(a.id);
+  const file = new File([blob], a.name, {type:a.type||blob.type});
+  if(navigator.canShare && navigator.canShare({files:[file]})) navigator.share({files:[file]}).catch(()=>{});
+  else window.open(URL.createObjectURL(blob));
+}
+
+/* =================== PDF in der App =================== */
+async function ensurePdfLibs(){
+  await loadScript('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js');
+  await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+}
+function pdfName(d){
+  const who = d.customer?.firma || d.customer?.name || '';
+  return `${d.number}${who?' – '+who:''}.pdf`.replace(/[\/\\:*?"<>|]/g,'-');
+}
+async function generatePDF(d){
+  await ensurePdfLibs();
+  if(document.fonts && document.fonts.ready) await document.fonts.ready;
+  const stage = document.createElement('div');
+  stage.style.cssText = 'position:absolute; left:-99999px; top:0;';
+  stage.innerHTML = fullDocHTML(d);
+  document.body.appendChild(stage);
+  try{
+    const sheets = [...stage.querySelectorAll('.sheet')];
+    const pdf = new jspdf.jsPDF({unit:'mm', format:'a4', compress:true});
+    for(let i=0; i<sheets.length; i++){
+      const canvas = await html2canvas(sheets[i], {scale:2, backgroundColor:'#0d0d0d', logging:false});
+      if(i>0) pdf.addPage();
+      const h = Math.min(297, canvas.height / canvas.width * 210);
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, h);
+    }
+    return pdf.output('blob');
+  } finally { stage.remove(); }
+}
+async function sharePDF(){
+  if(!previewDoc) return;
+  toast('PDF wird erstellt …');
+  try{
+    const blob = await generatePDF(previewDoc);
+    const file = new File([blob], pdfName(previewDoc), {type:'application/pdf'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:pdfName(previewDoc)});
+    } else {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = pdfName(previewDoc); a.click();
+      toast('PDF heruntergeladen');
+    }
+  }catch(e){ if(e.name!=='AbortError') alert('PDF konnte nicht erstellt werden: '+e.message); }
+}
+
+/* =================== Google Drive =================== */
+let driveTok = null;
+function tokenValid(){ return driveTok && Date.now() < driveTok.exp - 60000; }
+function getDriveToken(interactive){
+  return new Promise(async (resolve, reject)=>{
+    if(tokenValid()) return resolve(driveTok.token);
+    try{ await loadScript('https://accounts.google.com/gsi/client'); }catch(e){ return reject(new Error('Google-Skript nicht erreichbar (offline?)')); }
+    let settled = false;
+    const tc = google.accounts.oauth2.initTokenClient({
+      client_id: state.settings.clientId,
+      scope: 'https://www.googleapis.com/auth/drive.file',
+      callback: (resp)=>{
+        settled = true;
+        if(resp.error) return reject(new Error(resp.error));
+        driveTok = {token: resp.access_token, exp: Date.now() + (resp.expires_in||3600)*1000};
+        localStorage.setItem('nkzs-drive-ok','1');
+        updateDriveStatus();
+        resolve(resp.access_token);
+      },
+      error_callback: (err)=>{ if(!settled){ settled=true; reject(new Error(err.message||err.type||'Anmeldung abgebrochen')); } }
+    });
+    tc.requestAccessToken({prompt: interactive ? '' : ''});
+  });
+}
+async function connectDrive(){
+  const cid = document.getElementById('sClientId').value.trim();
+  if(!cid){ alert('Bitte zuerst die Client-ID aus der Google Cloud Console eintragen.'); return; }
+  state.settings.clientId = cid; save();
+  try{
+    await getDriveToken(true);
+    toast('Mit Google Drive verbunden');
+  }catch(e){ alert('Verbindung fehlgeschlagen: '+e.message); }
+  updateDriveStatus();
+}
+function updateDriveStatus(){
+  const el = document.getElementById('driveStatus'); if(!el) return;
+  if(!state.settings.clientId) el.textContent = 'Nicht eingerichtet — Client-ID eintragen und verbinden.';
+  else if(tokenValid()) el.textContent = 'Verbunden ✓ — Uploads landen in „NKZS Rechnungen" in deinem Drive.';
+  else if(localStorage.getItem('nkzs-drive-ok')) el.textContent = 'Eingerichtet ✓ — beim nächsten Upload wird die Google-Anmeldung ggf. kurz bestätigt.';
+  else el.textContent = 'Client-ID gespeichert — jetzt auf „Mit Google Drive verbinden" tippen.';
+}
+async function driveFetch(url, opts={}){
+  let token;
+  try{ token = await getDriveToken(false); }
+  catch(e){ token = await getDriveToken(true); }
+  const r = await fetch(url, {...opts, headers:{...(opts.headers||{}), Authorization:'Bearer '+token}});
+  if(!r.ok) throw new Error('Drive antwortet mit Fehler '+r.status);
+  return r.json();
+}
+async function driveFolder(name, parent){
+  const q = encodeURIComponent(`name='${name.replace(/'/g,"\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parent}' in parents and trashed=false`);
+  const found = await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`);
+  if(found.files && found.files.length) return found.files[0].id;
+  const made = await driveFetch('https://www.googleapis.com/drive/v3/files', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name, mimeType:'application/vnd.google-apps.folder', parents:[parent]})
+  });
+  return made.id;
+}
+async function driveUploadBlob(blob, name, folderId){
+  const q = encodeURIComponent(`name='${name.replace(/'/g,"\\'")}' and '${folderId}' in parents and trashed=false`);
+  const found = await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`);
+  const form = new FormData();
+  if(found.files && found.files.length){
+    form.append('metadata', new Blob([JSON.stringify({name})], {type:'application/json'}));
+    form.append('file', blob);
+    return driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${found.files[0].id}?uploadType=multipart`, {method:'PATCH', body:form});
+  }
+  form.append('metadata', new Blob([JSON.stringify({name, parents:[folderId]})], {type:'application/json'}));
+  form.append('file', blob);
+  return driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {method:'POST', body:form});
+}
+async function uploadDocToDrive(d){
+  if(!state.settings.clientId){ toast('Google Drive ist nicht eingerichtet'); return; }
+  toast('Lade zu Google Drive hoch …');
+  try{
+    const root = await driveFolder('NKZS Rechnungen', 'root');
+    const year = await driveFolder((d.date||'').slice(0,4) || String(new Date().getFullYear()), root);
+    const who = d.customer?.firma || d.customer?.name || '';
+    const folder = await driveFolder(`${d.number}${who?' – '+who:''}`.replace(/[\/\\]/g,'-'), year);
+    const pdf = await generatePDF(d);
+    await driveUploadBlob(pdf, pdfName(d), folder);
+    for(const a of (d.attachments||[])){
+      const blob = await idbGet(a.id);
+      if(blob) await driveUploadBlob(blob, a.name, folder);
+    }
+    const idx = state.docs.findIndex(x=>x.id===d.id);
+    if(idx>=0){ state.docs[idx].drive = Date.now(); save(); }
+    if(editing && editing.id===d.id) editing.drive = Date.now();
+    toast('In Google Drive gespeichert ✓');
+  }catch(e){ alert('Drive-Upload fehlgeschlagen: '+e.message); }
+}
+async function manualDriveUpload(){
+  collectEditor();
+  await uploadDocToDrive(editing);
 }
 
 /* =================== Dokument-HTML =================== */
@@ -854,7 +1152,7 @@ function docSheetHTML(d){
     <div class="payblock">
       Bitte überweise den Gesamtbetrag von <b>${fmt(total)}</b> bis zum <b>${deDate(due.toISOString().slice(0,10))}</b>
       (${s.due||24} Tage, § 2.1 AGB) unter Angabe der Rechnungsnummer <b>${esc(d.number)}</b>.<br>
-      ${s.bank||s.iban ? `<b>${esc(s.bank)}</b>${s.bank?' · ':''}IBAN: <b>${esc(s.iban)}</b>${s.bic?` · BIC: ${esc(s.bic)}`:''}` : ''}
+      ${s.bank||s.iban ? `Kontoinhaber: <b>${esc(s.name)}</b>${s.bank?` · <b>${esc(s.bank)}</b>`:''}<br>IBAN: <b>${esc(s.iban)}</b>${s.bic?` · BIC: <b>${esc(s.bic)}</b>`:''}` : ''}
     </div>` : `
     <div class="payblock">
       Dieses Angebot ist gültig bis <b>${deDate(d.valid)||'–'}</b>. Mit Auftragserteilung gelten die beiliegenden AGB als anerkannt.
