@@ -532,13 +532,14 @@ const AGB = {
   ]
 };
 
+const DEFAULT_CLIENT_ID = '170097667419-iej6gar7gnta4f7jj916glmtikhu348u.apps.googleusercontent.com';
 const defaultState = {
   settings: {
     name:'Nico Elia Klein', street:'', zip:'', city:'Biebertal',
     phone:'', mail:'nicoklein@nkzs.de', web:'nkzs.de',
     tax:'', bank:'', iban:'', bic:'',
     klein:true, vat:19, due:24,
-    clientId:'', driveAuto:true
+    clientId:DEFAULT_CLIENT_ID, driveAuto:true
   },
   customers: [],
   docs: []
@@ -548,7 +549,12 @@ let state = load();
 function load(){
   try{
     const raw = localStorage.getItem(LS_KEY);
-    if(raw){ const s = JSON.parse(raw); return {...structuredClone(defaultState), ...s, settings:{...defaultState.settings, ...(s.settings||{})}}; }
+    if(raw){
+      const s = JSON.parse(raw);
+      const merged = {...structuredClone(defaultState), ...s, settings:{...defaultState.settings, ...(s.settings||{})}};
+      if(!merged.settings.clientId) merged.settings.clientId = DEFAULT_CLIENT_ID;
+      return merged;
+    }
   }catch(e){}
   return structuredClone(defaultState);
 }
