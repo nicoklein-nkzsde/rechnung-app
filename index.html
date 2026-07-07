@@ -168,7 +168,20 @@ main{padding:6px 16px 100px; max-width:760px; margin:0 auto;}
   display:flex; align-items:center; gap:12px; padding:13px 16px; cursor:pointer;
   position:relative; transition:background .15s ease;
   animation:rowin .45s cubic-bezier(.3,.9,.4,1) both;
+  touch-action:pan-y; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
 }
+.row > *{position:relative; z-index:1;}
+.row .hold-fill{
+  position:absolute; inset:0; z-index:0; pointer-events:none;
+  transform:scaleX(0); transform-origin:left center; will-change:transform;
+}
+.row .hold-fill.green{background:linear-gradient(90deg, rgba(48,209,88,.18), rgba(48,209,88,.55));}
+.row .hold-fill.blue{background:linear-gradient(90deg, rgba(10,132,255,.18), rgba(10,132,255,.55));}
+.row.holding .hold-fill{transition:transform var(--holdms,2000ms) linear; transform:scaleX(1);}
+.row .hold-fill.reset{transition:transform .25s ease !important; transform:scaleX(0) !important;}
+.row.holddone{animation:holdflash .6s ease;}
+.row.holddone .hold-fill{transform:scaleX(1); transition:none;}
+@keyframes holdflash{0%{filter:brightness(1.6);}100%{filter:brightness(1);}}
 .row:nth-child(1){animation-delay:.02s;} .row:nth-child(2){animation-delay:.06s;}
 .row:nth-child(3){animation-delay:.10s;} .row:nth-child(4){animation-delay:.14s;}
 .row:nth-child(5){animation-delay:.18s;} .row:nth-child(n+6){animation-delay:.22s;}
@@ -194,7 +207,8 @@ main{padding:6px 16px 100px; max-width:760px; margin:0 auto;}
 .badge{display:inline-block; font-size:10px; font-weight:600; letter-spacing:.2px; padding:2.5px 8px; border-radius:20px; margin-top:3px;}
 .b-entwurf{background:rgba(142,142,147,.22); color:#aeaeb2;}
 .b-versendet{background:rgba(255,159,10,.16); color:var(--orange);}
-.b-bezahlt,.b-angenommen{background:rgba(48,209,88,.16); color:var(--green);}
+.b-bezahlt{background:rgba(48,209,88,.16); color:var(--green);}
+.b-angenommen{background:rgba(10,132,255,.16); color:#69abff;}
 .b-ueberfaellig,.b-abgelehnt{background:rgba(255,69,58,.16); color:var(--red);}
 .empty{color:var(--label3); text-align:center; padding:56px 24px; font-size:15px; line-height:1.5;}
 .empty .big{font-size:44px; margin-bottom:12px;}
@@ -440,6 +454,7 @@ select.f{
       <button data-f="rechnung">Rechnungen</button>
     </div>
     <div id="docList"></div>
+    <p class="hint" id="holdHint" style="text-align:center">Halte eine Rechnung gedrückt, um sie als <b style="color:var(--green)">bezahlt</b> zu markieren.<br>Angebote werden per Halten <b style="color:#69abff">angenommen</b> und dann zur Rechnung.</p>
   </section>
 
   <!-- ===== Editor ===== -->
@@ -612,6 +627,8 @@ select.f{
   </div>
   <img id="lbImg" alt="Beleg">
 </div>
+
+<input type="checkbox" switch id="hapticTick" style="position:absolute; left:-9999px; width:1px; height:1px" aria-hidden="true" tabindex="-1">
 
 <div id="printRoot"></div>
 
@@ -802,7 +819,8 @@ function renderList(){
     return;
   }
   el.innerHTML = '<div class="list">' + docs.map(d=>`
-    <div class="row" onclick="editDoc('${d.id}')">
+    <div class="row" data-id="${d.id}" onclick="rowTap('${d.id}')">
+      <div class="hold-fill ${d.type==='rechnung'?'green':'blue'}"></div>
       <div class="ic">${d.type==='rechnung'?'RE':'AN'}</div>
       <div class="mid">
         <div class="t">${esc(d.customer?.firma || d.customer?.name || 'Ohne Kunde')}</div>
@@ -814,6 +832,8 @@ function renderList(){
       </div>
       <div class="chev">›</div>
     </div>`).join('') + '</div>';
+  attachHold();
+  el.oncontextmenu = e => e.preventDefault();
 }
 
 /* =================== Editor =================== */
@@ -967,7 +987,7 @@ function saveDoc(preview){
   editing.isNew = false;
   // Automatischer Drive-Upload bei Statuswechsel auf Bezahlt / Angenommen
   const done = (doc.type==='rechnung' && doc.status==='bezahlt') || (doc.type==='angebot' && doc.status==='angenommen');
-  if(done && prevStatus!==doc.status && state.settings.driveAuto && state.settings.clientId) uploadDocToDrive(doc);
+  if(done && prevStatus!==doc.status && state.settings.driveAuto && state.settings.clientId) uploadDocToDrive(doc, true);
   if(preview) openPreview(doc);
   else { toast('Gespeichert'); showView('docs', null); }
 }
@@ -982,7 +1002,7 @@ function convertToInvoice(){
   const inv = structuredClone(editing);
   inv.id = uid(); inv.type='rechnung'; inv.status='entwurf';
   inv.number = nextNumber('rechnung'); inv.date = todayISO();
-  inv.service = ''; inv.attachments = []; inv.isNew = true;
+  inv.service = ''; inv.attachments = []; delete inv.drive; inv.isNew = true;
   editing = inv; fillEditor();
   window.scrollTo(0,0);
   toast('Als Rechnung übernommen');
@@ -1064,6 +1084,122 @@ function importData(ev){
     }catch(e){ alert('Datei konnte nicht gelesen werden.'); }
   };
   r.readAsText(f);
+}
+
+/* =================== Sound & Haptik =================== */
+let AC = null;
+function ac(){
+  try{
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if(AC.state === 'suspended') AC.resume();
+  }catch(e){}
+  return AC;
+}
+function note(freq, when, dur, type, vol, glide){
+  const c = ac(); if(!c) return;
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, when);
+  if(glide) o.frequency.exponentialRampToValueAtTime(glide, when + dur*.7);
+  g.gain.setValueAtTime(0, when);
+  g.gain.linearRampToValueAtTime(vol, when + .015);
+  g.gain.exponentialRampToValueAtTime(.0001, when + dur);
+  o.connect(g); g.connect(c.destination);
+  o.start(when); o.stop(when + dur + .05);
+}
+/* Geld eingegangen — warmer Zweiklang wie bei Apple Pay/Klarna */
+function soundPaid(){
+  const c = ac(); if(!c) return; const t = c.currentTime + .02;
+  note(587.33, t,      .30, 'triangle', .16);
+  note(880,    t + .11, .55, 'sine',    .22);
+  note(1108.7, t + .11, .45, 'sine',    .07);
+  note(1760,   t + .17, .35, 'sine',    .035);
+}
+/* Angebot angenommen — heller Aufwärts-Ding */
+function soundAccepted(){
+  const c = ac(); if(!c) return; const t = c.currentTime + .02;
+  note(523.25, t,      .22, 'sine', .15, 659.25);
+  note(783.99, t + .09, .40, 'sine', .16);
+}
+/* Haptik-Trick: programmatisches Umschalten eines iOS-Switch erzeugt ein feines Tick (iOS 17.4+) */
+function haptic(){
+  try{ document.getElementById('hapticTick').click(); }catch(e){}
+}
+
+/* =================== Halten = Status wechseln =================== */
+const HOLD_MS = 2000;
+let holdConsumed = false;
+let holdState = null;
+
+function rowTap(id){
+  if(holdConsumed) return;
+  editDoc(id);
+}
+function attachHold(){
+  document.querySelectorAll('#docList .row[data-id]').forEach(row=>{
+    const d = state.docs.find(x=>x.id===row.dataset.id);
+    if(!d) return;
+    if(d.type==='rechnung' && d.status==='bezahlt') return; // fertig, nichts zu halten
+    row.style.setProperty('--holdms', HOLD_MS+'ms');
+    row.addEventListener('pointerdown', ()=>startHold(row, row.dataset.id), {passive:true});
+    ['pointerup','pointercancel','pointerleave'].forEach(ev=>
+      row.addEventListener(ev, cancelHold, {passive:true}));
+  });
+}
+function startHold(row, id){
+  cancelHold();
+  const fill = row.querySelector('.hold-fill');
+  if(!fill) return;
+  fill.classList.remove('reset');
+  void fill.offsetWidth;
+  row.classList.add('holding');
+  ac(); haptic();
+  holdState = {
+    row, id,
+    tick: setInterval(haptic, 450),
+    timer: setTimeout(()=>finishHold(row, id), HOLD_MS)
+  };
+}
+function cancelHold(){
+  if(!holdState) return;
+  clearTimeout(holdState.timer); clearInterval(holdState.tick);
+  const {row} = holdState;
+  row.classList.remove('holding');
+  const fill = row.querySelector('.hold-fill');
+  if(fill){ fill.classList.add('reset'); setTimeout(()=>fill.classList.remove('reset'), 300); }
+  holdState = null;
+}
+function finishHold(row, id){
+  if(holdState) clearInterval(holdState.tick);
+  holdState = null;
+  holdConsumed = true; setTimeout(()=>holdConsumed = false, 600);
+  row.classList.remove('holding');
+  row.classList.add('holddone');
+  haptic(); setTimeout(haptic, 80); setTimeout(haptic, 180);
+  const d = state.docs.find(x=>x.id===id);
+  if(!d) return;
+  if(d.type==='angebot' && d.status!=='angenommen'){
+    d.status = 'angenommen'; save();
+    soundAccepted(); toast('Angebot angenommen ✓');
+  } else if(d.type==='angebot'){
+    const existing = d.invoiceId && state.docs.find(x=>x.id===d.invoiceId);
+    if(existing){
+      toast('Rechnung '+existing.number+' existiert bereits');
+      setTimeout(renderList, 700);
+      return;
+    }
+    const inv = structuredClone(d);
+    inv.id = uid(); inv.type = 'rechnung'; inv.status = 'entwurf';
+    inv.number = nextNumber('rechnung'); inv.date = todayISO(); inv.service = '';
+    inv.attachments = []; delete inv.drive; delete inv.invoiceId;
+    d.invoiceId = inv.id;
+    state.docs.push(inv); save();
+    soundAccepted(); toast('Rechnung '+inv.number+' erstellt');
+  } else {
+    d.status = 'bezahlt'; save();
+    soundPaid(); toast('Zahlung eingegangen ✓');
+    if(state.settings.driveAuto && state.settings.clientId) uploadDocToDrive(d, true);
+  }
+  setTimeout(renderList, 700);
 }
 
 /* =================== Belege =================== */
@@ -1243,7 +1379,7 @@ async function driveUploadBlob(blob, name, folderId){
   form.append('file', blob);
   return driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {method:'POST', body:form});
 }
-async function uploadDocToDrive(d){
+async function uploadDocToDrive(d, quiet){
   if(!state.settings.clientId){ toast('Google Drive ist nicht eingerichtet'); return; }
   toast('Lade zu Google Drive hoch …');
   try{
@@ -1261,7 +1397,10 @@ async function uploadDocToDrive(d){
     if(idx>=0){ state.docs[idx].drive = Date.now(); save(); }
     if(editing && editing.id===d.id) editing.drive = Date.now();
     toast('In Google Drive gespeichert ✓');
-  }catch(e){ alert('Drive-Upload fehlgeschlagen: '+e.message); }
+  }catch(e){
+    if(quiet) toast('☁ Drive-Upload fehlgeschlagen — in der Rechnung erneut versuchen');
+    else alert('Drive-Upload fehlgeschlagen: '+e.message);
+  }
 }
 async function manualDriveUpload(){
   collectEditor();
@@ -1420,7 +1559,7 @@ function doPrint(){
 }
 
 /* =================== App-Version & Updates =================== */
-const APP_VERSION = '2.2';
+const APP_VERSION = '2.3';
 document.getElementById('appVersion').textContent = APP_VERSION;
 {
   const lastVer = localStorage.getItem('nkzs-ver');
