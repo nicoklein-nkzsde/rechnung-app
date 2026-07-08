@@ -152,8 +152,8 @@ main{padding:6px 16px 100px; max-width:760px; margin:0 auto;}
 }
 .seg button{
   flex:1; border:none; background:none; color:var(--label2); font-family:var(--ui); font-weight:600;
-  font-size:13px; padding:8px 0; border-radius:9px; cursor:pointer; position:relative; z-index:1;
-  transition:color .25s ease;
+  font-size:12.5px; padding:8px 0; border-radius:9px; cursor:pointer; position:relative; z-index:1;
+  transition:color .25s ease; white-space:nowrap;
 }
 .seg button.active{color:#fff;}
 
@@ -486,6 +486,7 @@ select.f{
       <button data-f="alle" class="active">Alle</button>
       <button data-f="angebot">Angebote</button>
       <button data-f="rechnung">Rechnungen</button>
+      <button data-f="archiv">Archiv</button>
     </div>
     <div id="docList"></div>
     <p class="hint" id="holdHint" style="text-align:center">Halte eine Rechnung gedrückt, um sie als <b style="color:var(--green)">bezahlt</b> zu markieren.<br>Angebote werden per Halten <b style="color:#69abff">angenommen</b> und dann zur Rechnung.</p>
@@ -860,7 +861,7 @@ function showView(v, btn){
   if(v==='customers') renderCustomers();
   if(v==='settings') fillSettings();
   window.scrollTo(0,0);
-  requestAnimationFrame(syncSegs);
+  setTimeout(syncSegs, 50);
 }
 
 /* Gleitender Daumen in den Segment-Schaltern */
@@ -875,7 +876,8 @@ function syncSegs(){
     thumb.style.transform = `translateX(${active.offsetLeft - 2}px)`;
   });
 }
-window.addEventListener('resize', syncSegs);
+window.addEventListener('resize', ()=>setTimeout(syncSegs, 50));
+window.addEventListener('orientationchange', ()=>setTimeout(syncSegs, 120));
 
 /* =================== Dokumente =================== */
 let filter = 'alle';
@@ -886,6 +888,12 @@ document.getElementById('filterSeg').addEventListener('click', e=>{
   renderList();
   syncSegs();
 });
+/* Archiv: bezahlt/erledigt und aus einem früheren Monat → raus aus der aktiven Liste */
+function isArchived(d){
+  const nowKey = todayISO().slice(0,7);
+  if(d.type==='rechnung') return d.status==='bezahlt' && ((d.paidAt||d.date)||'').slice(0,7) < nowKey;
+  return (d.status==='abgelehnt' || (d.status==='angenommen' && d.invoiceId)) && (d.date||'').slice(0,7) < nowKey;
+}
 function statusOf(d){ return isOverdue(d) ? 'ueberfaellig' : d.status; }
 function statusLabel(d){
   if(isOverdue(d)) return 'Überfällig · '+overdueDays(d)+' Tg.';
@@ -903,11 +911,13 @@ function renderList(){
   document.getElementById('stOver').textContent = over.length;
 
   const docs = state.docs
-    .filter(d => filter==='alle' || d.type===filter)
+    .filter(d => filter==='archiv' ? isArchived(d) : (!isArchived(d) && (filter==='alle' || d.type===filter)))
     .sort((a,b) => (b.date||'').localeCompare(a.date||'') || (b.number||'').localeCompare(a.number||''));
   const el = document.getElementById('docList');
   if(!docs.length){
-    el.innerHTML = '<div class="empty"><div class="big">📄</div>Noch keine Dokumente.<br>Tippe oben auf ＋, um dein erstes<br>Angebot oder deine erste Rechnung zu erstellen.</div>';
+    el.innerHTML = filter==='archiv'
+      ? '<div class="empty"><div class="big">🗄</div>Archiv ist leer.<br>Bezahlte Rechnungen und erledigte Angebote<br>landen hier automatisch ab dem Folgemonat.</div>'
+      : '<div class="empty"><div class="big">📄</div>Noch keine Dokumente.<br>Tippe oben auf ＋, um dein erstes<br>Angebot oder deine erste Rechnung zu erstellen.</div>';
     return;
   }
   el.innerHTML = '<div class="list">' + docs.map(d=>`
@@ -1751,7 +1761,7 @@ function doPrint(){
 }
 
 /* =================== App-Version & Updates =================== */
-const APP_VERSION = '2.5';
+const APP_VERSION = '2.6';
 document.getElementById('appVersion').textContent = APP_VERSION;
 {
   const lastVer = localStorage.getItem('nkzs-ver');
@@ -1777,8 +1787,8 @@ document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('gesturechange', e => e.preventDefault());
 
 renderList();
-requestAnimationFrame(syncSegs);
-if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=>syncSegs());
+setTimeout(syncSegs, 50);
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=>setTimeout(syncSegs, 50));
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').then(reg => {
     // App fragt bei jedem Öffnen aktiv nach einer neuen Version
