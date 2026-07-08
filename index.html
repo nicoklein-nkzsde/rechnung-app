@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>NKZS Rechnungen</title>
 <meta name="description" content="Angebote & Rechnungen für NKZS – Foto · Video · Social Media Management">
 <link rel="manifest" href="manifest.webmanifest">
@@ -1751,7 +1751,7 @@ function doPrint(){
 }
 
 /* =================== App-Version & Updates =================== */
-const APP_VERSION = '2.4';
+const APP_VERSION = '2.5';
 document.getElementById('appVersion').textContent = APP_VERSION;
 {
   const lastVer = localStorage.getItem('nkzs-ver');
@@ -1771,6 +1771,11 @@ function applyUpdate(){
 }
 
 /* =================== Init =================== */
+// Pinch-Zoom komplett abschalten — App-Gefühl statt Webseite
+// (Doppeltipp-Zoom verhindert bereits touch-action:manipulation im CSS)
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('gesturechange', e => e.preventDefault());
+
 renderList();
 requestAnimationFrame(syncSegs);
 if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=>syncSegs());

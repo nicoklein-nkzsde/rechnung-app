@@ -1,4 +1,4 @@
-const CACHE = 'nkzs-app-v7';
+const CACHE = 'nkzs-app-v8';
 const ASSETS = [
   '.', 'index.html', 'manifest.webmanifest',
   'icon-180.png', 'icon-192.png', 'icon-512.png',
