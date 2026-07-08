@@ -313,6 +313,40 @@ select.f{
 .toast.out{opacity:0; transition:opacity .3s ease;}
 @keyframes toastin{from{opacity:0; transform:translateX(-50%) translateY(12px);}}
 
+/* Umsatz-Seite */
+.month-nav{display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:14px;}
+.mn-btn{
+  width:32px; height:32px; border-radius:50%; border:.5px solid rgba(255,255,255,.14);
+  background:linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04));
+  color:#fff; font-size:18px; line-height:1; cursor:pointer; padding-bottom:2px;
+}
+.mn-btn:active{transform:scale(.9); opacity:.7;}
+.mn-label{font-size:15px; font-weight:600; min-width:130px;}
+.rings{display:flex; justify-content:center; gap:14px; margin:6px 0 12px;}
+.ringwrap{position:relative; width:150px; height:150px;}
+.ring{width:100%; height:100%; transform:rotate(-90deg);}
+.ring .track{fill:none; stroke:rgba(255,255,255,.08); stroke-width:13;}
+.ring .seg{fill:none; stroke-width:13; stroke-linecap:round;
+  transition:stroke-dasharray .9s cubic-bezier(.3,.9,.35,1), stroke-dashoffset .9s cubic-bezier(.3,.9,.35,1);}
+.ring .segGreen{stroke:var(--green); filter:drop-shadow(0 0 6px rgba(48,209,88,.5));}
+.ring .segBlack{stroke:#0b0b0d;}
+.ringcenter{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none;}
+.ringcenter .rv{font-size:19px; font-weight:700; font-variant-numeric:tabular-nums;}
+.ringcenter .rl{font-size:10.5px; color:var(--label2); margin-top:2px;}
+.legend{display:flex; justify-content:center; gap:18px; font-size:12px; color:var(--label2); margin-bottom:12px;}
+.legend .dot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:-1px;}
+.goalrow{display:flex; align-items:center; justify-content:center; gap:8px; font-size:12.5px; color:var(--label2);}
+.goalrow input{width:76px; text-align:right; padding:6px 9px; font-size:14px;}
+.bars{display:flex; align-items:flex-end; gap:5px; height:110px; padding-top:6px;}
+.bcol{flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; height:100%;}
+.bstack{flex:1; width:100%; max-width:20px; display:flex; flex-direction:column; justify-content:flex-end; border-radius:5px; overflow:hidden; background:rgba(255,255,255,.05);}
+.bstack .bg{background:linear-gradient(180deg, #3fe07a, #27b558);}
+.bstack .bb{background:#0b0b0d;}
+.bcol .bl{font-size:9px; color:var(--label3);}
+.bcol.now .bl{color:#fff; font-weight:700;}
+.cash-add{display:grid; grid-template-columns:1fr 1.6fr auto; gap:8px; align-items:center;}
+.cash-add .btn{padding:11px 16px;}
+
 /* Update-Anzeige */
 #updatePill{
   position:fixed; top:calc(10px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%);
@@ -457,6 +491,58 @@ select.f{
     <p class="hint" id="holdHint" style="text-align:center">Halte eine Rechnung gedrückt, um sie als <b style="color:var(--green)">bezahlt</b> zu markieren.<br>Angebote werden per Halten <b style="color:#69abff">angenommen</b> und dann zur Rechnung.</p>
   </section>
 
+  <!-- ===== Umsatz ===== -->
+  <section class="view" id="view-stats">
+    <h1 class="large-title">Umsatz</h1>
+    <div class="card">
+      <div class="month-nav">
+        <button class="mn-btn" onclick="statsShift(-1)">‹</button>
+        <div class="mn-label" id="statsMonthLbl">–</div>
+        <button class="mn-btn" onclick="statsShift(1)">›</button>
+      </div>
+      <div class="rings">
+        <div class="ringwrap">
+          <svg class="ring" viewBox="0 0 150 150">
+            <circle class="track" cx="75" cy="75" r="62"/>
+            <circle class="seg segGreen" cx="75" cy="75" r="62" id="rmG" style="stroke-dasharray:0 390"/>
+            <circle class="seg segBlack" cx="75" cy="75" r="62" id="rmB" style="stroke-dasharray:0 390"/>
+          </svg>
+          <div class="ringcenter"><div class="rv" id="rmVal">0 €</div><div class="rl" id="rmLbl">Monat</div></div>
+        </div>
+        <div class="ringwrap">
+          <svg class="ring" viewBox="0 0 150 150">
+            <circle class="track" cx="75" cy="75" r="62"/>
+            <circle class="seg segGreen" cx="75" cy="75" r="62" id="ryG" style="stroke-dasharray:0 390"/>
+            <circle class="seg segBlack" cx="75" cy="75" r="62" id="ryB" style="stroke-dasharray:0 390"/>
+          </svg>
+          <div class="ringcenter"><div class="rv" id="ryVal">0 €</div><div class="rl" id="ryLbl">Jahr</div></div>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--green)"></i>Rechnungen</span>
+        <span><i class="dot" style="background:#0b0b0d; box-shadow:inset 0 0 0 1px rgba(255,255,255,.28)"></i>Bar&nbsp;🤫</span>
+      </div>
+      <div class="goalrow">
+        Monatsziel <input class="f" id="statsGoal" inputmode="numeric" onchange="saveGoal(this.value)"> €
+      </div>
+      <p class="hint" style="text-align:center; margin-top:10px">Jahresring: Fortschritt zur § 19-Grenze (25.000 €) — Bar zählt mit.</p>
+    </div>
+
+    <div class="card-label">Jahresverlauf <span id="statsBarsYear"></span></div>
+    <div class="card"><div class="bars" id="statsBars"></div></div>
+
+    <div class="card-label">Miniaufträge · bar auf die Hand 🤫</div>
+    <div class="card">
+      <div class="cash-add">
+        <input class="f" id="cashAmt" inputmode="decimal" placeholder="Betrag €">
+        <input class="f" id="cashNote" placeholder="Notiz (optional)">
+        <button class="btn small" onclick="addCash()">＋</button>
+      </div>
+      <div id="cashList" style="margin-top:12px"></div>
+      <p class="hint" style="margin-bottom:0">Erscheint nur hier — nirgendwo sonst in der App.</p>
+    </div>
+  </section>
+
   <!-- ===== Editor ===== -->
   <section class="view" id="view-edit">
     <button class="backbtn" onclick="showView('docs',null)">‹ Dokumente</button>
@@ -598,6 +684,10 @@ select.f{
     <svg fill="none" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M7 3h7l5 5v11a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
     Dokumente
   </button>
+  <button data-v="stats" onclick="showView('stats',this)">
+    <svg fill="none" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3a9 9 0 1 0 9 9m-9-9v9h9m-9-9a9 9 0 0 1 9 9"/></svg>
+    Umsatz
+  </button>
   <button data-v="customers" onclick="showView('customers',this)">
     <svg fill="none" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-2.13a4 4 0 10-4-6.9 4 4 0 004 6.9zm6-3a3 3 0 10-2-5.6"/></svg>
     Kunden
@@ -675,10 +765,11 @@ const defaultState = {
     phone:'', mail:'nicoklein@nkzs.de', web:'nkzs.de',
     tax:'', bank:'', iban:'', bic:'',
     klein:true, vat:19, due:24,
-    clientId:DEFAULT_CLIENT_ID, driveAuto:true
+    clientId:DEFAULT_CLIENT_ID, driveAuto:true, goal:1500
   },
   customers: [],
-  docs: []
+  docs: [],
+  cash: []
 };
 
 let state = load();
@@ -765,6 +856,7 @@ function showView(v, btn){
   document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
   document.querySelector(`nav.tabs button[data-v="${v}"]`)?.classList.add('active');
   if(v==='docs') renderList();
+  if(v==='stats') renderStats();
   if(v==='customers') renderCustomers();
   if(v==='settings') fillSettings();
   window.scrollTo(0,0);
@@ -976,6 +1068,8 @@ function saveDoc(preview){
   if(!editing.customer.name && !editing.customer.firma){ alert('Bitte mindestens Name oder Firma des Kunden angeben.'); return; }
   if(!editing.items.some(i=>i.desc.trim())){ alert('Bitte mindestens eine Position mit Bezeichnung angeben.'); return; }
   const prevStatus = state.docs.find(x=>x.id===editing.id)?.status;
+  if(editing.status==='bezahlt' && !editing.paidAt) editing.paidAt = todayISO();
+  if(editing.status!=='bezahlt') delete editing.paidAt;
   const {isNew, ...doc} = editing;
   const idx = state.docs.findIndex(d=>d.id===doc.id);
   if(idx>=0) state.docs[idx]=doc; else state.docs.push(doc);
@@ -1043,7 +1137,8 @@ function saveSettings(){
     phone:sPhone.value.trim(), mail:sMail.value.trim(), web:sWeb.value.trim(),
     tax:sTax.value.trim(), bank:sBank.value.trim(), iban:sIban.value.trim(), bic:sBic.value.trim(),
     klein:sKlein.checked, vat:parseNum(sVat.value)||19, due:parseInt(sDue.value)||24,
-    clientId:sClientId.value.trim(), driveAuto:sDriveAuto.checked
+    clientId:sClientId.value.trim(), driveAuto:sDriveAuto.checked,
+    goal:state.settings.goal||1500
   };
   save(); updateDriveStatus(); toast('Einstellungen gespeichert');
 }
@@ -1084,6 +1179,103 @@ function importData(ev){
     }catch(e){ alert('Datei konnte nicht gelesen werden.'); }
   };
   r.readAsText(f);
+}
+
+/* =================== Umsatz =================== */
+const MONTHS = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const KLEIN_LIMIT = 25000;
+let statsM = null;
+function statsShift(d){
+  statsM.m += d;
+  if(statsM.m < 0){ statsM.m = 11; statsM.y--; }
+  if(statsM.m > 11){ statsM.m = 0; statsM.y++; }
+  renderStats();
+}
+function revenueFor(y, m){ // m === null → ganzes Jahr; liefert {g: Rechnungen, b: bar}
+  let g = 0, b = 0;
+  state.docs.forEach(d=>{
+    if(d.type==='rechnung' && d.status==='bezahlt'){
+      const dt = d.paidAt || d.date || '';
+      if(+dt.slice(0,4)===y && (m===null || +dt.slice(5,7)===m+1)) g += docTotal(d);
+    }
+  });
+  (state.cash||[]).forEach(c=>{
+    const dt = c.date || '';
+    if(+dt.slice(0,4)===y && (m===null || +dt.slice(5,7)===m+1)) b += (c.amount||0);
+  });
+  return {g, b};
+}
+function setRing(gEl, bEl, g, b, ref){
+  const C = 2*Math.PI*62;
+  const total = Math.min(1, (g+b)/(ref||1));
+  const gFrac = (g+b)>0 ? total*(g/(g+b)) : 0;
+  const bFrac = (g+b)>0 ? total*(b/(g+b)) : 0;
+  gEl.style.strokeDasharray = `${gFrac*C} ${C}`;
+  gEl.style.strokeDashoffset = '0';
+  bEl.style.strokeDasharray = `${bFrac*C} ${C}`;
+  bEl.style.strokeDashoffset = `${-gFrac*C}`;
+}
+function renderStats(){
+  if(!statsM){ const n = new Date(); statsM = {y:n.getFullYear(), m:n.getMonth()}; }
+  const {y, m} = statsM;
+  document.getElementById('statsMonthLbl').textContent = MONTHS[m]+' '+y;
+  const mon = revenueFor(y, m), yr = revenueFor(y, null);
+  document.getElementById('rmVal').textContent = fmtShort(mon.g+mon.b);
+  document.getElementById('rmLbl').textContent = MONTHS[m].slice(0,3)+' · Ziel '+fmtShort(state.settings.goal||1500);
+  document.getElementById('ryVal').textContent = fmtShort(yr.g+yr.b);
+  document.getElementById('ryLbl').textContent = y+' · § 19';
+  document.getElementById('statsGoal').value = state.settings.goal||1500;
+  // Ringe kurz verzögert setzen, damit die CSS-Transition von 0 hochanimiert
+  setTimeout(()=>{
+    setRing(document.getElementById('rmG'), document.getElementById('rmB'), mon.g, mon.b, state.settings.goal||1500);
+    setRing(document.getElementById('ryG'), document.getElementById('ryB'), yr.g, yr.b, KLEIN_LIMIT);
+  }, 60);
+  // Jahresbalken
+  document.getElementById('statsBarsYear').textContent = y;
+  const per = Array.from({length:12}, (_,i)=>revenueFor(y, i));
+  const max = Math.max(1, ...per.map(p=>p.g+p.b));
+  const now = new Date();
+  document.getElementById('statsBars').innerHTML = per.map((p,i)=>{
+    const gh = Math.round(p.g/max*100), bh = Math.round(p.b/max*100);
+    const isNow = (y===now.getFullYear() && i===now.getMonth());
+    return `<div class="bcol${isNow?' now':''}">
+      <div class="bstack"><div class="bb" style="height:${bh}%"></div><div class="bg" style="height:${gh}%"></div></div>
+      <div class="bl">${MONTHS[i][0]}</div>
+    </div>`;
+  }).join('');
+  renderCash();
+}
+function saveGoal(v){
+  state.settings.goal = parseNum(v)||1500;
+  save(); renderStats();
+}
+function addCash(){
+  const amt = parseNum(document.getElementById('cashAmt').value);
+  if(!amt){ alert('Bitte einen Betrag eingeben.'); return; }
+  (state.cash = state.cash||[]).push({id:uid(), amount:amt, note:document.getElementById('cashNote').value.trim(), date:todayISO()});
+  save();
+  document.getElementById('cashAmt').value=''; document.getElementById('cashNote').value='';
+  soundPaid(); toast('Eingetragen 🤫');
+  renderStats();
+}
+function delCash(id){
+  if(!confirm('Eintrag löschen?')) return;
+  state.cash = (state.cash||[]).filter(c=>c.id!==id);
+  save(); renderStats();
+}
+function renderCash(){
+  const el = document.getElementById('cashList');
+  const list = [...(state.cash||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  if(!list.length){ el.innerHTML=''; return; }
+  el.innerHTML = '<div class="list">' + list.map(c=>`
+    <div class="row" style="cursor:default; animation:none">
+      <div class="ic" style="background:#0b0b0d; border-color:rgba(255,255,255,.2)">€</div>
+      <div class="mid">
+        <div class="t">${fmt(c.amount)}</div>
+        <div class="s">${esc(c.note||'Miniauftrag')} · ${deDate(c.date)}</div>
+      </div>
+      <button class="rmatt" onclick="delCash('${c.id}')">✕</button>
+    </div>`).join('') + '</div>';
 }
 
 /* =================== Sound & Haptik =================== */
@@ -1195,7 +1387,7 @@ function finishHold(row, id){
     state.docs.push(inv); save();
     soundAccepted(); toast('Rechnung '+inv.number+' erstellt');
   } else {
-    d.status = 'bezahlt'; save();
+    d.status = 'bezahlt'; d.paidAt = d.paidAt || todayISO(); save();
     soundPaid(); toast('Zahlung eingegangen ✓');
     if(state.settings.driveAuto && state.settings.clientId) uploadDocToDrive(d, true);
   }
@@ -1559,7 +1751,7 @@ function doPrint(){
 }
 
 /* =================== App-Version & Updates =================== */
-const APP_VERSION = '2.3';
+const APP_VERSION = '2.4';
 document.getElementById('appVersion').textContent = APP_VERSION;
 {
   const lastVer = localStorage.getItem('nkzs-ver');
