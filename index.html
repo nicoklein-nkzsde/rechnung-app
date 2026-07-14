@@ -603,6 +603,25 @@ select.f{
       <label class="chk"><span>AGB als Seite 2 anhängen</span><input type="checkbox" id="fAgb" checked><span class="sw"></span></label>
     </div>
 
+    <div class="card-label" id="mahnLabel" style="display:none">Mahnwesen</div>
+    <div class="card" id="mahnCard" style="display:none">
+      <div class="hint" id="mahnInfo" style="margin:2px 0 4px"></div>
+      <label class="f">Stufe</label>
+      <select class="f" id="mLevel" onchange="mahnLevelChanged()">
+        <option value="erinnerung">Zahlungserinnerung (freundlich)</option>
+        <option value="m1">1. Mahnung</option>
+        <option value="m2">2. Mahnung</option>
+        <option value="letzte">Letzte Mahnung</option>
+      </select>
+      <div class="grid2">
+        <div><label class="f">Verzugsgebühr €</label><input class="f" id="mFee" inputmode="decimal"></div>
+        <div><label class="f">Neue Frist</label><input class="f" id="mDue" type="date"></div>
+      </div>
+      <div class="btn-row" style="margin-top:14px">
+        <button class="btn sec block" onclick="createMahnung()">Mahnung erstellen & Vorschau</button>
+      </div>
+    </div>
+
     <div class="card-label">Belege</div>
     <div class="card">
       <div id="attList"></div>
@@ -926,7 +945,7 @@ function renderList(){
       <div class="ic">${d.type==='rechnung'?'RE':'AN'}</div>
       <div class="mid">
         <div class="t">${esc(d.customer?.firma || d.customer?.name || 'Ohne Kunde')}</div>
-        <div class="s">${esc(d.number)} · ${deDate(d.date)}${d.drive?' · ☁':''}${(d.attachments&&d.attachments.length)?' · 📎'+d.attachments.length:''}</div>
+        <div class="s">${esc(d.number)} · ${deDate(d.date)}${d.drive?' · ☁':''}${(d.attachments&&d.attachments.length)?' · 📎'+d.attachments.length:''}${(d.mahnungen&&d.mahnungen.length)?' · ⚠M'+d.mahnungen.length:''}</div>
       </div>
       <div class="right">
         <div class="amt">${fmt(docTotal(d))}</div>
@@ -1003,6 +1022,7 @@ function fillEditor(){
   document.getElementById('btnDelete').style.display = editing.isNew ? 'none':'';
   document.getElementById('btnConvert').style.display = (!editing.isNew && editing.type==='angebot') ? '':'none';
   renderItems();
+  renderMahnCard();
   editing.attachments = editing.attachments || [];
   renderAttachments();
   document.getElementById('btnDrive').style.display = state.settings.clientId ? '' : 'none';
@@ -1110,6 +1130,127 @@ function convertToInvoice(){
   editing = inv; fillEditor();
   window.scrollTo(0,0);
   toast('Als Rechnung übernommen');
+}
+
+/* =================== Mahnwesen =================== */
+const MAHN_LEVELS = {erinnerung:'Zahlungserinnerung', m1:'1. Mahnung', m2:'2. Mahnung', letzte:'Letzte Mahnung'};
+function renderMahnCard(){
+  const show = editing.type==='rechnung' && !editing.isNew && editing.status==='versendet';
+  document.getElementById('mahnLabel').style.display = show ? '' : 'none';
+  document.getElementById('mahnCard').style.display = show ? '' : 'none';
+  if(!show) return;
+  const due = dueDate(editing);
+  const over = isOverdue(editing);
+  const days = over ? overdueDays(editing) : 0;
+  const hist = (editing.mahnungen||[]).map(m=>`${MAHN_LEVELS[m.level]||m.level} am ${deDate(m.date)}`).join(' · ');
+  document.getElementById('mahnInfo').innerHTML =
+    (over
+      ? `Überfällig seit <b style="color:var(--red)">${days} Tag${days===1?'':'en'}</b> (Ziel: ${deDate(due.toISOString().slice(0,10))}). Laut AGB § 2.2 wären <b>${fmt(days*50)}</b> Verzugsgebühr angefallen — Betrag unten anpassbar.`
+      : `Zahlungsziel: ${deDate(due.toISOString().slice(0,10))} — noch nicht überfällig.`)
+    + (hist ? `<br>Bisher: ${hist}` : '');
+  // Nächste Stufe vorschlagen
+  const count = (editing.mahnungen||[]).length;
+  document.getElementById('mLevel').value = ['erinnerung','m1','m2','letzte'][Math.min(count,3)];
+  mahnLevelChanged();
+  const nd = new Date(); nd.setDate(nd.getDate()+7);
+  document.getElementById('mDue').value = nd.toISOString().slice(0,10);
+}
+function mahnLevelChanged(){
+  const lvl = document.getElementById('mLevel').value;
+  const days = isOverdue(editing) ? overdueDays(editing) : 0;
+  document.getElementById('mFee').value = lvl==='erinnerung' ? '0' : String(days*50);
+}
+function mahnSheetHTML(d, opts){
+  const s = state.settings;
+  const total = docTotal(d);
+  const fee = opts.fee||0;
+  const due = dueDate(d);
+  const dueStr = deDate(due.toISOString().slice(0,10));
+  const c = d.customer||{};
+  const senderLine = [s.name, s.street, [s.zip,s.city].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
+  const title = MAHN_LEVELS[opts.level].toUpperCase();
+  const nr = `${d.number}-M${opts.count}`;
+  let text;
+  if(opts.level==='erinnerung'){
+    text = `sicherlich ist es Ihrer Aufmerksamkeit entgangen: Zur Rechnung <b>${esc(d.number)}</b> vom <b>${deDate(d.date)}</b> über <b>${fmt(total)}</b> konnten wir bislang keinen Zahlungseingang feststellen (Zahlungsziel: ${dueStr}). Wir bitten Sie, den offenen Betrag bis zum <b>${deDate(opts.due)}</b> zu überweisen. Sollte sich Ihre Zahlung mit diesem Schreiben überschnitten haben, betrachten Sie es bitte als gegenstandslos.`;
+  } else {
+    text = `trotz Fälligkeit am <b>${dueStr}</b> konnten wir zur Rechnung <b>${esc(d.number)}</b> vom <b>${deDate(d.date)}</b> bisher keinen Zahlungseingang feststellen. Gemäß § 2.2 unserer AGB befindet sich die Zahlung damit in Verzug${fee>0?` — es fällt die folgende Verzugsgebühr an`:''}. Wir bitten um Ausgleich des Gesamtbetrags bis spätestens <b>${deDate(opts.due)}</b>.`
+    + (opts.level==='letzte' ? ` Nach fruchtlosem Ablauf dieser Frist behalten wir uns vor, weitere rechtliche Schritte einzuleiten.` : '');
+  }
+  const feeRow = fee>0 ? `<tr><td>2</td><td><div>Verzugsgebühr gemäß § 2.2 AGB</div><div class="idesc">${isOverdue(d)?overdueDays(d)+' Kalendertage Verzug':''}</div></td><td class="r"></td><td class="r"></td><td class="r">${fmt(fee)}</td></tr>` : '';
+  return `
+  <div class="sheet">
+    <div class="doc-head">
+      <div>
+        <div class="logo">NKZS</div>
+        <div class="tagline">Foto&nbsp;·&nbsp;Video&nbsp;·&nbsp;Social&nbsp;Media&nbsp;Management</div>
+      </div>
+      <div class="doc-type">
+        <div class="dt" style="font-size:22px">${title}</div>
+        <div class="dn">${esc(nr)}</div>
+      </div>
+    </div>
+    <hr class="sep">
+    <div class="addr-row">
+      <div>
+        <div class="sender">${esc(senderLine)}</div>
+        <div class="to">
+          ${c.firma?`<div class="nm">${esc(c.firma)}</div>`:''}
+          <div class="${c.firma?'':'nm'}">${esc(c.name)}</div>
+          <div>${esc(c.street)}</div>
+          <div>${esc([c.zip,c.city].filter(Boolean).join(' '))}</div>
+        </div>
+      </div>
+      <div class="meta">
+        <div>Datum: <b>${deDate(todayISO())}</b></div>
+        <div>Betrifft: <b>Rechnung ${esc(d.number)}</b></div>
+        <div>Rechnungsdatum: <b>${deDate(d.date)}</b></div>
+        <div>Zahlungsziel: <b>${dueStr}</b></div>
+        <div>Neue Frist: <b>${deDate(opts.due)}</b></div>
+      </div>
+    </div>
+    <div class="payblock" style="margin-top:26px">Sehr geehrte Damen und Herren,<br><br>${text}</div>
+    <table class="items">
+      <thead><tr><th style="width:6%">Pos.</th><th>Bezeichnung</th><th class="r" style="width:15%"></th><th class="r" style="width:16%"></th><th class="r" style="width:16%">Betrag</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><div>Offener Rechnungsbetrag ${esc(d.number)}</div></td><td class="r"></td><td class="r"></td><td class="r">${fmt(total)}</td></tr>
+        ${feeRow}
+      </tbody>
+    </table>
+    <div class="sumblock"><div class="in">
+      <div class="sumrow total"><span>Zu zahlender Gesamtbetrag</span><span>${fmt(total+fee)}</span></div>
+    </div></div>
+    <div class="payblock">
+      Bitte überweise${c.firma?'n Sie':''} den Gesamtbetrag von <b>${fmt(total+fee)}</b> bis zum <b>${deDate(opts.due)}</b>
+      unter Angabe der Rechnungsnummer <b>${esc(d.number)}</b>.<br>
+      ${s.bank||s.iban ? `Kontoinhaber: <b>${esc(s.name)}</b>${s.bank?` · <b>${esc(s.bank)}</b>`:''}<br>IBAN: <b>${esc(s.iban)}</b>${s.bic?` · BIC: <b>${esc(s.bic)}</b>`:''}` : ''}
+    </div>
+    <div class="foot">
+      <div><b style="color:#9a9a9a">NKZS / ${esc(s.name)}</b><br>${esc(s.street)}${s.street?'<br>':''}${esc([s.zip,s.city].filter(Boolean).join(' '))}</div>
+      <div>${s.phone?esc(s.phone)+'<br>':''}${esc(s.mail)}<br>${esc(s.web)}</div>
+      <div style="text-align:right">${s.tax?'Steuernummer: '+esc(s.tax)+'<br>':''}${s.iban?'IBAN: '+esc(s.iban):''}</div>
+    </div>
+  </div>`;
+}
+function createMahnung(){
+  collectEditor();
+  const level = document.getElementById('mLevel').value;
+  const fee = parseNum(document.getElementById('mFee').value);
+  const due = document.getElementById('mDue').value;
+  if(!due){ alert('Bitte eine neue Frist wählen.'); return; }
+  editing.mahnungen = editing.mahnungen||[];
+  // Nicht doppelt protokollieren, wenn dieselbe Stufe heute schon erstellt wurde
+  if(!editing.mahnungen.some(m=>m.level===level && m.date===todayISO())){
+    editing.mahnungen.push({level, date:todayISO(), fee, due});
+  }
+  const count = editing.mahnungen.length;
+  // In den Bestand speichern
+  const idx = state.docs.findIndex(x=>x.id===editing.id);
+  if(idx>=0){ const {isNew, ...doc} = editing; state.docs[idx] = doc; save(); }
+  const html = mahnSheetHTML(editing, {level, fee, due, count}) + docSheetHTML(editing);
+  const who = editing.customer?.firma || editing.customer?.name || '';
+  openPreviewHTML(html, `${MAHN_LEVELS[level]} ${editing.number}${who?' – '+who:''}.pdf`.replace(/[\/\\:*?"<>|]/g,'-'));
+  renderMahnCard();
 }
 
 /* =================== Kunden =================== */
@@ -1474,12 +1615,13 @@ function pdfName(d){
   const who = d.customer?.firma || d.customer?.name || '';
   return `${d.number}${who?' – '+who:''}.pdf`.replace(/[\/\\:*?"<>|]/g,'-');
 }
-async function generatePDF(d){
+function generatePDF(d){ return generatePDFHTML(fullDocHTML(d)); }
+async function generatePDFHTML(html){
   await ensurePdfLibs();
   if(document.fonts && document.fonts.ready) await document.fonts.ready;
   const stage = document.createElement('div');
   stage.style.cssText = 'position:absolute; left:-99999px; top:0;';
-  stage.innerHTML = fullDocHTML(d);
+  stage.innerHTML = html;
   document.body.appendChild(stage);
   try{
     const sheets = [...stage.querySelectorAll('.sheet')];
@@ -1494,16 +1636,16 @@ async function generatePDF(d){
   } finally { stage.remove(); }
 }
 async function sharePDF(){
-  if(!previewDoc) return;
+  if(!previewHTML) return;
   toast('PDF wird erstellt …');
   try{
-    const blob = await generatePDF(previewDoc);
-    const file = new File([blob], pdfName(previewDoc), {type:'application/pdf'});
+    const blob = await generatePDFHTML(previewHTML);
+    const file = new File([blob], previewName, {type:'application/pdf'});
     if(navigator.canShare && navigator.canShare({files:[file]})){
-      await navigator.share({files:[file], title:pdfName(previewDoc)});
+      await navigator.share({files:[file], title:previewName});
     } else {
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob); a.download = pdfName(previewDoc); a.click();
+      a.href = URL.createObjectURL(blob); a.download = previewName; a.click();
       toast('PDF heruntergeladen');
     }
   }catch(e){ if(e.name!=='AbortError') alert('PDF konnte nicht erstellt werden: '+e.message); }
@@ -1717,11 +1859,14 @@ function fullDocHTML(d){
 }
 
 /* =================== Vorschau & Druck =================== */
-let previewDoc = null;
+let previewHTML = null, previewName = 'Dokument.pdf';
 function openPreview(d){
-  previewDoc = d;
+  openPreviewHTML(fullDocHTML(d), pdfName(d));
+}
+function openPreviewHTML(html, name){
+  previewHTML = html; previewName = name;
   const scroll = document.getElementById('previewScroll');
-  scroll.innerHTML = fullDocHTML(d);
+  scroll.innerHTML = html;
   scroll.querySelectorAll('.sheet').forEach(sh=>{
     const holder = document.createElement('div'); holder.className='sheet-holder';
     sh.parentNode.insertBefore(holder, sh); holder.appendChild(sh);
@@ -1750,8 +1895,8 @@ function closePreview(){
   document.body.style.overflow='';
 }
 function doPrint(){
-  if(!previewDoc) return;
-  document.getElementById('printRoot').innerHTML = fullDocHTML(previewDoc);
+  if(!previewHTML) return;
+  document.getElementById('printRoot').innerHTML = previewHTML;
   const isStandaloneIOS = window.navigator.standalone === true;
   if(isStandaloneIOS && typeof window.print !== 'function'){
     alert('PDF-Export: Öffne die App einmal in Safari (gleiche Adresse) und tippe dort auf „PDF erstellen" → Teilen → „Als PDF sichern".');
@@ -1761,7 +1906,7 @@ function doPrint(){
 }
 
 /* =================== App-Version & Updates =================== */
-const APP_VERSION = '2.6';
+const APP_VERSION = '2.7';
 document.getElementById('appVersion').textContent = APP_VERSION;
 {
   const lastVer = localStorage.getItem('nkzs-ver');
