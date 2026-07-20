@@ -573,7 +573,12 @@ select.f{
 
     <div class="card-label">Kunde</div>
     <div class="card">
-      <label class="f" style="margin-top:2px">Kunde wählen</label>
+      <label class="f" style="margin-top:2px">✨ Text einfügen → Felder füllen</label>
+      <textarea class="f" id="pasteBox" style="min-height:64px" placeholder="Adressblock aus WhatsApp/Mail hier reinkopieren – Name, Straße, PLZ Ort werden erkannt"></textarea>
+      <div class="btn-row h" style="margin-top:8px">
+        <button class="btn sec small" onclick="applyPastedInfo()">Felder automatisch füllen</button>
+      </div>
+      <label class="f">Kunde wählen</label>
       <select class="f" id="fCustomerSel"></select>
       <div class="grid2">
         <div><label class="f">Firma (optional)</label><input class="f" id="fcFirma"></div>
@@ -585,6 +590,7 @@ select.f{
         <div><label class="f">Ort</label><input class="f" id="fcCity"></div>
       </div>
       <label class="f">E-Mail (optional)</label><input class="f" id="fcMail" type="email">
+      <input type="hidden" id="fcTax">
     </div>
 
     <div class="card-label">Positionen</div>
@@ -631,7 +637,8 @@ select.f{
     </div>
 
     <div class="btn-row">
-      <button class="btn block" onclick="saveDoc(true)">Speichern & Vorschau</button>
+      <button class="btn block" id="btnSend" onclick="sendAndFile()">✓ Bestätigen & versenden</button>
+      <button class="btn sec block" onclick="saveDoc(true)">Speichern & Vorschau</button>
       <button class="btn sec block" onclick="saveDoc(false)">Speichern</button>
       <button class="btn sec block" id="btnConvert" style="display:none" onclick="convertToInvoice()">In Rechnung umwandeln</button>
       <button class="btn sec block" id="btnDrive" style="display:none" onclick="manualDriveUpload()">☁ Jetzt zu Google Drive hochladen</button>
@@ -1006,7 +1013,8 @@ function fillEditor(){
   document.getElementById('fAgb').checked = editing.agb!==false;
   const c = editing.customer||{};
   fcFirma.value=c.firma||''; fcName.value=c.name||''; fcStreet.value=c.street||'';
-  fcZip.value=c.zip||''; fcCity.value=c.city||''; fcMail.value=c.mail||'';
+  fcZip.value=c.zip||''; fcCity.value=c.city||''; fcMail.value=c.mail||''; fcTax.value=c.tax||'';
+  document.getElementById('pasteBox').value='';
   const sel = document.getElementById('fCustomerSel');
   sel.innerHTML = '<option value="">– Neuer Kunde / manuell –</option>' +
     state.customers.map((k,i)=>`<option value="${i}">${esc(k.firma||k.name)}</option>`).join('');
@@ -1015,7 +1023,7 @@ function fillEditor(){
     if(sel.value==='') return;
     const k = state.customers[+sel.value];
     fcFirma.value=k.firma||''; fcName.value=k.name||''; fcStreet.value=k.street||'';
-    fcZip.value=k.zip||''; fcCity.value=k.city||''; fcMail.value=k.mail||'';
+    fcZip.value=k.zip||''; fcCity.value=k.city||''; fcMail.value=k.mail||''; fcTax.value=k.tax||'';
   };
   setType(editing.type, false);
   if(!editing.number) document.getElementById('fNumber').value = nextNumber(editing.type);
@@ -1090,13 +1098,15 @@ function collectEditor(){
   editing.agb = fAgb.checked;
   editing.customer = {
     firma:fcFirma.value.trim(), name:fcName.value.trim(), street:fcStreet.value.trim(),
-    zip:fcZip.value.trim(), city:fcCity.value.trim(), mail:fcMail.value.trim()
+    zip:fcZip.value.trim(), city:fcCity.value.trim(), mail:fcMail.value.trim(), tax:fcTax.value.trim()
   };
 }
-function saveDoc(preview){
-  collectEditor();
-  if(!editing.customer.name && !editing.customer.firma){ alert('Bitte mindestens Name oder Firma des Kunden angeben.'); return; }
-  if(!editing.items.some(i=>i.desc.trim())){ alert('Bitte mindestens eine Position mit Bezeichnung angeben.'); return; }
+function validateEditor(){
+  if(!editing.customer.name && !editing.customer.firma){ alert('Bitte mindestens Name oder Firma des Kunden angeben.'); return false; }
+  if(!editing.items.some(i=>i.desc.trim())){ alert('Bitte mindestens eine Position mit Bezeichnung angeben.'); return false; }
+  return true;
+}
+function persistEditing(){
   const prevStatus = state.docs.find(x=>x.id===editing.id)?.status;
   if(editing.status==='bezahlt' && !editing.paidAt) editing.paidAt = todayISO();
   if(editing.status!=='bezahlt') delete editing.paidAt;
@@ -1109,11 +1119,45 @@ function saveDoc(preview){
   if(ci>=0) state.customers[ci]=c; else state.customers.push(c);
   save();
   editing.isNew = false;
+  return {doc: state.docs.find(d=>d.id===doc.id), prevStatus};
+}
+function saveDoc(preview){
+  collectEditor();
+  if(!validateEditor()) return;
+  const {doc, prevStatus} = persistEditing();
   // Automatischer Drive-Upload bei Statuswechsel auf Bezahlt / Angenommen
   const done = (doc.type==='rechnung' && doc.status==='bezahlt') || (doc.type==='angebot' && doc.status==='angenommen');
   if(done && prevStatus!==doc.status && state.settings.driveAuto && state.settings.clientId) uploadDocToDrive(doc, true);
   if(preview) openPreview(doc);
   else { toast('Gespeichert'); showView('docs', null); }
+}
+/* Bestätigen & versenden: PDF → Drive (Kundenordner) → Status versendet → Gmail-Entwurf */
+async function sendAndFile(){
+  collectEditor();
+  if(!validateEditor()) return;
+  editing.status = 'versendet';
+  document.getElementById('fStatus').value = 'versendet';
+  const {doc} = persistEditing();
+  toast('PDF wird erstellt …');
+  let pdf;
+  try{ pdf = await generatePDF(doc); }
+  catch(e){ alert('PDF konnte nicht erstellt werden: '+e.message); return; }
+  const issues = [];
+  if(state.settings.clientId){
+    const okDrive = await uploadDocToDrive(doc, true, pdf);
+    if(!okDrive) issues.push('Drive');
+    try{
+      await createGmailDraft(doc, pdf);
+      toast('Gmail-Entwurf erstellt ✓');
+    }catch(e){
+      issues.push('Gmail');
+      alert('Gmail-Entwurf konnte nicht erstellt werden: '+(e.message||e)+'\n\nFalls zum ersten Mal: Die Gmail-API muss in der Google Cloud Console aktiviert sein, und in den Einstellungen einmal neu „Mit Google Drive verbinden" tippen (neue Berechtigung).');
+    }
+  } else {
+    issues.push('Google nicht eingerichtet');
+  }
+  fillEditor();
+  toast(issues.length ? 'Als versendet gespeichert — offen: '+issues.join(', ') : 'Fertig ✓ — Entwurf wartet in Gmail');
 }
 function deleteDoc(){
   if(!confirm('Dokument wirklich löschen?')) return;
@@ -1130,6 +1174,64 @@ function convertToInvoice(){
   editing = inv; fillEditor();
   window.scrollTo(0,0);
   toast('Als Rechnung übernommen');
+}
+
+/* =================== Text einfügen → Felder füllen (lokal, ohne KI) =================== */
+function applyPastedInfo(){
+  const raw = document.getElementById('pasteBox').value;
+  if(!raw.trim()){ alert('Bitte zuerst Text ins Feld einfügen.'); return; }
+  const lines = raw.split(/\n+/).map(l=>l.trim()).filter(Boolean);
+  const info = {name:'', firma:'', street:'', zip:'', city:'', mail:'', tax:''};
+  const used = new Set();
+  // 1) Eindeutige Muster zuerst: PLZ+Ort, Steuernummer, E-Mail
+  lines.forEach((l,i)=>{
+    let m;
+    if(!info.zip && (m = l.match(/^(\d{5})\s+(.+)$/))){ info.zip=m[1]; info.city=m[2].trim(); used.add(i); }
+    else if(!info.tax && (m = l.match(/(?:st\.?|steuer)\s*-?\s*(?:nr|nummer|id)\.?\s*:?\s*([\d\/\s]{6,})/i))){ info.tax=m[1].trim(); used.add(i); }
+    else if(!info.mail && (m = l.match(/\b([^\s@]+@[^\s@]+\.\S{2,})\b/))){ info.mail=m[1]; used.add(i); }
+  });
+  // 2) Straße: Zeile mit Hausnummer (nicht die PLZ-Zeile)
+  lines.forEach((l,i)=>{
+    if(used.has(i) || info.street) return;
+    if(/^[^\d@]{2,}\s\d+\s*[a-zA-Z]?(\s*[-–\/]\s*\d+\w?)?$/.test(l)){ info.street=l; used.add(i); }
+  });
+  // 3) Name/Firma: erste übrige Zeile ohne Füllwörter
+  const filler = /rechnungsadresse|adresse|hallo|^hi\b|hey|liebe|meine|hier ist|bitte|danke|folgend|betreff|lautet/i;
+  lines.forEach((l,i)=>{
+    if(used.has(i) || info.name || filler.test(l) || l.length<3 || /\d{4,}/.test(l)) return;
+    info.name=l; used.add(i);
+  });
+  if(/\b(gmbh|ug|ag|e\.\s?k\.?|kg|ohg|gbr|studio|verein|café|cafe|hotel|restaurant|praxis|kanzlei|immobilien|autohaus)\b/i.test(info.name)){
+    info.firma = info.name; info.name = '';
+  }
+  if(!info.name && !info.firma && !info.street && !info.zip){
+    alert('Ich konnte keine Adresse erkennen. Format z. B.:\n\nVivien Karstens\nDurchschnitt 10\n20146 Hamburg');
+    return;
+  }
+  // Nur erkannte Felder überschreiben
+  if(info.firma) fcFirma.value = info.firma;
+  if(info.name) fcName.value = info.name;
+  if(info.street) fcStreet.value = info.street;
+  if(info.zip) fcZip.value = info.zip;
+  if(info.city) fcCity.value = info.city;
+  if(info.mail) fcMail.value = info.mail;
+  if(info.tax) fcTax.value = info.tax;
+  // Bekannter Kunde? Dann im Dropdown markieren und fehlende Felder ergänzen
+  const key = (info.firma||info.name||'').toLowerCase();
+  const idx = state.customers.findIndex(k=>(k.firma||k.name||'').toLowerCase()===key);
+  let known = false;
+  if(key && idx>=0){
+    known = true;
+    document.getElementById('fCustomerSel').value = String(idx);
+    const k = state.customers[idx];
+    if(!fcStreet.value && k.street) fcStreet.value = k.street;
+    if(!fcZip.value && k.zip) fcZip.value = k.zip;
+    if(!fcCity.value && k.city) fcCity.value = k.city;
+    if(!fcMail.value && k.mail) fcMail.value = k.mail;
+  }
+  const found = [info.firma&&'Firma', info.name&&'Name', info.street&&'Straße', info.zip&&'PLZ/Ort', info.mail&&'E-Mail', info.tax&&'Steuernr.'].filter(Boolean).join(', ');
+  toast((known?'Bekannter Kunde ✓ · ':'Neuer Kunde · ')+'Erkannt: '+found);
+  document.getElementById('pasteBox').value = '';
 }
 
 /* =================== Mahnwesen =================== */
@@ -1661,7 +1763,7 @@ function getDriveToken(interactive){
     let settled = false;
     const tc = google.accounts.oauth2.initTokenClient({
       client_id: state.settings.clientId,
-      scope: 'https://www.googleapis.com/auth/drive.file',
+      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.compose',
       callback: (resp)=>{
         settled = true;
         if(resp.error) return reject(new Error(resp.error));
@@ -1723,15 +1825,15 @@ async function driveUploadBlob(blob, name, folderId){
   form.append('file', blob);
   return driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {method:'POST', body:form});
 }
-async function uploadDocToDrive(d, quiet){
-  if(!state.settings.clientId){ toast('Google Drive ist nicht eingerichtet'); return; }
+async function uploadDocToDrive(d, quiet, pdfBlob){
+  if(!state.settings.clientId){ toast('Google Drive ist nicht eingerichtet'); return false; }
   toast('Lade zu Google Drive hoch …');
   try{
+    // Struktur: NKZS Rechnungen / <Kunde> / Dateien
     const root = await driveFolder('NKZS Rechnungen', 'root');
-    const year = await driveFolder((d.date||'').slice(0,4) || String(new Date().getFullYear()), root);
-    const who = d.customer?.firma || d.customer?.name || '';
-    const folder = await driveFolder(`${d.number}${who?' – '+who:''}`.replace(/[\/\\]/g,'-'), year);
-    const pdf = await generatePDF(d);
+    const who = (d.customer?.firma || d.customer?.name || 'Sonstige').replace(/[\/\\]/g,'-').trim();
+    const folder = await driveFolder(who, root);
+    const pdf = pdfBlob || await generatePDF(d);
     await driveUploadBlob(pdf, pdfName(d), folder);
     for(const a of (d.attachments||[])){
       const blob = await idbGet(a.id);
@@ -1741,10 +1843,53 @@ async function uploadDocToDrive(d, quiet){
     if(idx>=0){ state.docs[idx].drive = Date.now(); save(); }
     if(editing && editing.id===d.id) editing.drive = Date.now();
     toast('In Google Drive gespeichert ✓');
+    return true;
   }catch(e){
     if(quiet) toast('☁ Drive-Upload fehlgeschlagen — in der Rechnung erneut versuchen');
     else alert('Drive-Upload fehlgeschlagen: '+e.message);
+    return false;
   }
+}
+/* Gmail-Entwurf mit PDF-Anhang — wartet in den Entwürfen, bis Nico ihn absendet */
+async function createGmailDraft(d, pdfBlob){
+  const s = state.settings;
+  const isRe = d.type==='rechnung';
+  const subject = (isRe?'Rechnung ':'Angebot ')+d.number+' – NKZS';
+  const vorname = (d.customer?.name||'').split(' ')[0];
+  const bodyTxt = 'Hallo'+(vorname?' '+vorname:'')+',\n\n'
+    +'anbei '+(isRe?'die Rechnung':'das Angebot')+' '+d.number+' als PDF.\n'
+    +'Vielen Dank für die Zusammenarbeit!\n\n'
+    +'Viele Grüße\n'+(s.name||'Nico Elia Klein')+'\n'
+    +'NKZS – Foto · Video · Social Media Management'
+    +(s.web?'\n'+s.web:'');
+  const pdfB64 = (await blobToB64(pdfBlob)).split(',')[1];
+  const fname = pdfName(d).replace(/[^\x20-\x7E]/g, '-');
+  const enc = str => btoa(unescape(encodeURIComponent(str)));
+  const bnd = 'nkzs_' + uid();
+  const mime = [
+    'To: ' + (d.customer?.mail || ''),
+    'Subject: =?UTF-8?B?' + enc(subject) + '?=',
+    'MIME-Version: 1.0',
+    'Content-Type: multipart/mixed; boundary="' + bnd + '"',
+    '',
+    '--' + bnd,
+    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    enc(bodyTxt),
+    '--' + bnd,
+    'Content-Type: application/pdf; name="' + fname + '"',
+    'Content-Disposition: attachment; filename="' + fname + '"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    pdfB64,
+    '--' + bnd + '--'
+  ].join('\r\n');
+  const raw = btoa(mime).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  return driveFetch('https://gmail.googleapis.com/gmail/v1/users/me/drafts', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({message:{raw}})
+  });
 }
 async function manualDriveUpload(){
   collectEditor();
@@ -1906,7 +2051,7 @@ function doPrint(){
 }
 
 /* =================== App-Version & Updates =================== */
-const APP_VERSION = '2.7';
+const APP_VERSION = '2.8';
 document.getElementById('appVersion').textContent = APP_VERSION;
 {
   const lastVer = localStorage.getItem('nkzs-ver');
