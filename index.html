@@ -786,11 +786,15 @@ const AGB = {
 };
 
 const DEFAULT_CLIENT_ID = '170097667419-iej6gar7gnta4f7jj916glmtikhu348u.apps.googleusercontent.com';
+// Feste NKZS-Bankdaten — stehen immer auf der Rechnung, auch bei leerem Profil
+const FIX_BANK = 'Trade Republic';
+const FIX_IBAN = 'DE23 1001 2345 7773 9899 11';
+const FIX_BIC  = 'TRBKDEBBXXX';
 const defaultState = {
   settings: {
     name:'Nico Elia Klein', street:'', zip:'', city:'Biebertal',
     phone:'', mail:'nicoklein@nkzs.de', web:'nkzs.de',
-    tax:'', bank:'', iban:'', bic:'',
+    tax:'', bank:FIX_BANK, iban:FIX_IBAN, bic:FIX_BIC,
     klein:true, vat:19, due:24,
     clientId:DEFAULT_CLIENT_ID, driveAuto:true, goal:1500
   },
@@ -807,6 +811,10 @@ function load(){
       const s = JSON.parse(raw);
       const merged = {...structuredClone(defaultState), ...s, settings:{...defaultState.settings, ...(s.settings||{})}};
       if(!merged.settings.clientId) merged.settings.clientId = DEFAULT_CLIENT_ID;
+      // Leere Bankfelder aus Altprofilen mit den festen Daten nachfüllen
+      if(!merged.settings.bank) merged.settings.bank = FIX_BANK;
+      if(!merged.settings.iban) merged.settings.iban = FIX_IBAN;
+      if(!merged.settings.bic)  merged.settings.bic  = FIX_BIC;
       return merged;
     }
   }catch(e){}
@@ -1388,7 +1396,7 @@ function saveSettings(){
   state.settings = {
     name:sName.value.trim(), street:sStreet.value.trim(), zip:sZip.value.trim(), city:sCity.value.trim(),
     phone:sPhone.value.trim(), mail:sMail.value.trim(), web:sWeb.value.trim(),
-    tax:sTax.value.trim(), bank:sBank.value.trim(), iban:sIban.value.trim(), bic:sBic.value.trim(),
+    tax:sTax.value.trim(), bank:sBank.value.trim()||FIX_BANK, iban:sIban.value.trim()||FIX_IBAN, bic:sBic.value.trim()||FIX_BIC,
     klein:sKlein.checked, vat:parseNum(sVat.value)||19, due:parseInt(sDue.value)||24,
     clientId:sClientId.value.trim(), driveAuto:sDriveAuto.checked,
     goal:state.settings.goal||1500
@@ -2051,7 +2059,7 @@ function doPrint(){
 }
 
 /* =================== App-Version & Updates =================== */
-const APP_VERSION = '2.8';
+const APP_VERSION = '2.9';
 document.getElementById('appVersion').textContent = APP_VERSION;
 {
   const lastVer = localStorage.getItem('nkzs-ver');
