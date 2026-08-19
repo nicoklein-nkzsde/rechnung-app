@@ -419,6 +419,7 @@ select.f{
 .sheet table.items th.r, .sheet table.items td.r{text-align:right; white-space:nowrap;}
 .sheet table.items td{padding:12px 11px; border-bottom:1px solid #222; vertical-align:top;}
 .sheet table.items td .idesc{color:#8a8a8a; font-size:10.5px; margin-top:3px; line-height:1.5;}
+.sheet table.items tr.discount-row td{color:#4cd07d;}
 .sheet .sumblock{margin-top:18px; display:flex; justify-content:flex-end;}
 .sheet .sumblock .in{min-width:52%;}
 .sheet .sumrow{display:flex; justify-content:space-between; gap:24px; font-size:12px; color:#bdbdbd; padding:5px 11px;}
@@ -596,7 +597,10 @@ select.f{
     <div class="card-label">Positionen</div>
     <div class="card">
       <div id="itemsWrap"></div>
-      <button class="btn sec small" onclick="addItem()">＋ Position hinzufügen</button>
+      <div class="btn-row h" style="margin-top:0">
+        <button class="btn sec small" onclick="addItem()">＋ Position</button>
+        <button class="btn sec small" onclick="addDiscount()">− Rabatt</button>
+      </div>
       <div class="totals">
         <div class="big" id="tTotal">0,00 €</div>
         <div class="small" id="tNote">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</div>
@@ -1053,9 +1057,18 @@ function renderOverdueNote(){
     el.innerHTML = `<div class="overdue-note">Diese Rechnung ist seit <b>${days} Tag${days===1?'':'en'}</b> überfällig (Zahlungsziel: ${deDate(dueDate(d).toISOString().slice(0,10))}).<br>Laut AGB § 2.2 wären das <b>${fmt(days*50)}</b> Verzugsgebühr (50 € / Kalendertag).</div>`;
   } else el.innerHTML='';
 }
+function discAbs(price){ const n = parseNum(price); return n ? String(Math.abs(n)).replace('.',',') : ''; }
 function renderItems(){
   const w = document.getElementById('itemsWrap');
-  w.innerHTML = editing.items.map((it,i)=>`
+  w.innerHTML = editing.items.map((it,i)=> it.discount ? `
+    <div class="item-row discount">
+      <button class="rm" onclick="rmItem(${i})">✕</button>
+      <label class="f" style="margin-top:2px">Rabatt-Bezeichnung</label>
+      <input class="f" value="${esc(it.desc)}" oninput="uItem(${i},'desc',this.value)" placeholder="z. B. Kollegen-Rabatt">
+      <label class="f">Rabatt-Betrag €</label>
+      <input class="f" inputmode="decimal" value="${discAbs(it.price)}" oninput="uDiscount(${i},this.value)" placeholder="z. B. 50">
+      <div class="sum" style="color:var(--green)">− ${fmt(Math.abs(parseNum(it.price)))}</div>
+    </div>` : `
     <div class="item-row">
       ${editing.items.length>1?`<button class="rm" onclick="rmItem(${i})">✕</button>`:''}
       <label class="f" style="margin-top:2px">Bezeichnung</label>
@@ -1082,7 +1095,17 @@ function uItem(i,k,v){
     updateTotals();
   }
 }
+// Rabatt: Nutzer tippt einen positiven Betrag, gespeichert wird er negativ
+function uDiscount(i,v){
+  const n = Math.abs(parseNum(v));
+  editing.items[i].price = n ? String(-n) : '';
+  editing.items[i].qty = 1;
+  const row = document.querySelectorAll('#itemsWrap .item-row')[i];
+  if(row) row.querySelector('.sum').textContent = '− '+fmt(n);
+  updateTotals();
+}
 function addItem(){ editing.items.push({desc:'',detail:'',qty:1,unit:'pauschal',price:''}); renderItems(); }
+function addDiscount(){ editing.items.push({desc:'Rabatt',detail:'',qty:1,unit:'',price:'',discount:true}); renderItems(); }
 function rmItem(i){ editing.items.splice(i,1); renderItems(); }
 function updateTotals(){
   const s = state.settings;
@@ -1914,14 +1937,28 @@ function docSheetHTML(d){
   const due = dueDate(d);
   const senderLine = [s.name, s.street, [s.zip,s.city].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
   const c = d.customer||{};
-  const rows = (d.items||[]).filter(i=>i.desc.trim()).map((it,i)=>`
-    <tr>
-      <td>${i+1}</td>
+  let posNr = 0;
+  const rows = (d.items||[]).filter(i=>i.desc.trim()).map((it)=>{
+    if(it.discount){
+      const amt = fmt(parseNum(it.price)); // bereits negativ
+      posNr++;
+      return `<tr class="discount-row">
+      <td>${posNr}</td>
+      <td><div>${esc(it.desc||'Rabatt')}</div>${it.detail?`<div class="idesc">${esc(it.detail)}</div>`:''}</td>
+      <td class="r">—</td>
+      <td class="r"></td>
+      <td class="r">${amt}</td>
+    </tr>`;
+    }
+    posNr++;
+    return `<tr>
+      <td>${posNr}</td>
       <td><div>${esc(it.desc)}</div>${it.detail?`<div class="idesc">${esc(it.detail)}</div>`:''}</td>
       <td class="r">${esc(it.qty)} ${esc(it.unit)}</td>
       <td class="r">${fmt(parseNum(it.price))}</td>
       <td class="r">${fmt(parseNum(it.qty)*parseNum(it.price))}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
   const sums = s.klein
     ? `<div class="sumrow total"><span>Gesamtbetrag</span><span>${fmt(total)}</span></div>`
     : `<div class="sumrow"><span>Zwischensumme (netto)</span><span>${fmt(net)}</span></div>
@@ -2059,7 +2096,7 @@ function doPrint(){
 }
 
 /* =================== App-Version & Updates =================== */
-const APP_VERSION = '2.9';
+const APP_VERSION = '3.0';
 document.getElementById('appVersion').textContent = APP_VERSION;
 {
   const lastVer = localStorage.getItem('nkzs-ver');
