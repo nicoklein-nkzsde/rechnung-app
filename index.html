@@ -601,6 +601,9 @@ select.f{
         <button class="btn sec small" onclick="addItem()">＋ Position</button>
         <button class="btn sec small" onclick="addDiscount()">− Rabatt</button>
       </div>
+      <select class="f" id="presetSel" style="margin-top:10px" onchange="addPreset(this.value); this.value='';">
+        <option value="">✨ Vorlage einfügen …</option>
+      </select>
       <div class="totals">
         <div class="big" id="tTotal">0,00 €</div>
         <div class="small" id="tNote">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</div>
@@ -610,6 +613,7 @@ select.f{
     <div class="card">
       <label class="f" style="margin-top:2px">Notiz auf dem Dokument (optional)</label>
       <textarea class="f" id="fNotes" placeholder="z. B. Vielen Dank für die Zusammenarbeit!"></textarea>
+      <label class="chk"><span>50 % Anzahlung anfordern</span><input type="checkbox" id="fAnzahlung"><span class="sw"></span></label>
       <label class="chk"><span>AGB als Seite 2 anhängen</span><input type="checkbox" id="fAgb" checked><span class="sw"></span></label>
     </div>
 
@@ -683,6 +687,13 @@ select.f{
         <div><label class="f">USt-Satz % (falls später)</label><input class="f" id="sVat" inputmode="numeric"></div>
         <div><label class="f">Zahlungsziel (Tage)</label><input class="f" id="sDue" inputmode="numeric"></div>
       </div>
+      <label class="chk"><span>50 % Anzahlung standardmäßig</span><input type="checkbox" id="sAnzahlungStd"><span class="sw"></span></label>
+      <label class="f">Anzahlung %</label><input class="f" id="sAnzahlungPct" inputmode="numeric">
+    </div>
+    <div class="card-label">Standard-Hinweis auf der Rechnung</div>
+    <div class="card">
+      <textarea class="f" id="sHinweis" style="min-height:110px" placeholder="Steht unter den Positionen auf jeder Rechnung/​jedem Angebot"></textarea>
+      <p class="hint" style="margin-bottom:0">Erscheint klein unter den Positionen. Leer lassen = kein Hinweis.</p>
     </div>
     <div class="card-label">Google Drive</div>
     <div class="card">
@@ -757,15 +768,15 @@ select.f{
 /* =================== Daten =================== */
 const LS_KEY = 'nkzs-app-v1';
 const AGB = {
-  stand: 'Juni 2026',
+  stand: 'August 2026',
   intro: 'Diese Bedingungen gelten für alle Aufträge zwischen NKZS / Nico Elia Klein ("Auftragnehmer") und dem Auftraggeber. Mit Auftragserteilung werden sie vollumfänglich anerkannt.',
   sections: [
     {t:'§ 1  Leistung & Abnahme', c:[
       ['1.1','Die Leistungen gelten mit Übergabe der finalen Datei als vollständig erbracht.'],
       ['1.2','Mängelansprüche sind innerhalb von 14 Tagen schriftlich anzuzeigen. Danach gilt die Leistung als abgenommen. Stilistische Präferenzen begründen keinen Sachmangel.']]},
     {t:'§ 2  Zahlung & Verzug', c:[
-      ['2.1','Rechnungen sind innerhalb von 24 Tagen vollständig zu begleichen.'],
-      ['2.2','Ab dem 25. Tag tritt automatisch Zahlungsverzug ein — Verzugsgebühr: 50,00 € pro Kalendertag, ohne weitere Mahnung.'],
+      ['2.1','Rechnungen sind innerhalb von 8 Tagen ab Rechnungsdatum vollständig zu begleichen. Sofern nicht anders vereinbart, wird eine Anzahlung in Höhe von 50 % des Auftragswerts vor Leistungsbeginn fällig; der Restbetrag nach Fertigstellung.'],
+      ['2.2','Bei Zahlungsverzug werden Verzugszinsen in Höhe von 10,52 % p. a. berechnet. Gegenüber Unternehmern wird zusätzlich eine Verzugskostenpauschale von 40,00 € gemäß § 288 Abs. 5 BGB fällig.'],
       ['2.3','Nutzungsrechte gehen erst mit vollständigem Zahlungseingang über. Veröffentlichung vorher ist untersagt.']]},
     {t:'§ 3  Eigentumsvorbehalt & Nutzungsrechte', c:[
       ['3.1','Rohdaten, Schnittdateien und Zwischenstände bleiben bis zur vollständigen Zahlung Eigentum des Auftragnehmers.'],
@@ -799,7 +810,9 @@ const defaultState = {
     name:'Nico Elia Klein', street:'', zip:'', city:'Biebertal',
     phone:'', mail:'nicoklein@nkzs.de', web:'nkzs.de',
     tax:'', bank:FIX_BANK, iban:FIX_IBAN, bic:FIX_BIC,
-    klein:true, vat:19, due:24,
+    klein:true, vat:19, due:8,
+    anzahlungStd:true, anzahlungPct:50,
+    hinweis:'Zahlbar per Überweisung auf das unten genannte Konto. Als Kleinunternehmer gem. § 19 UStG weise ich keine Umsatzsteuer aus. Nutzungs- und Verwertungsrechte gehen erst mit vollständigem Zahlungseingang über. Es gelten die beigefügten Allgemeinen Geschäftsbedingungen.',
     clientId:DEFAULT_CLIENT_ID, driveAuto:true, goal:1500
   },
   customers: [],
@@ -819,6 +832,11 @@ function load(){
       if(!merged.settings.bank) merged.settings.bank = FIX_BANK;
       if(!merged.settings.iban) merged.settings.iban = FIX_IBAN;
       if(!merged.settings.bic)  merged.settings.bic  = FIX_BIC;
+      // Neue Zahlungsbedingungen: altes Zahlungsziel 24 → 8, neue Felder nachziehen
+      if(merged.settings.due===24) merged.settings.due = 8;
+      if(merged.settings.hinweis==null) merged.settings.hinweis = defaultState.settings.hinweis;
+      if(merged.settings.anzahlungStd==null) merged.settings.anzahlungStd = true;
+      if(merged.settings.anzahlungPct==null) merged.settings.anzahlungPct = 50;
       return merged;
     }
   }catch(e){}
@@ -837,9 +855,12 @@ function deDate(iso){ if(!iso) return ''; const [y,m,d] = iso.split('-'); return
 function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function parseNum(v){ if(typeof v==='number') return v; v=String(v||'').replace(/\./g,'').replace(',','.'); const n=parseFloat(v); return isNaN(n)?0:n; }
 function docTotal(d){ return (d.items||[]).reduce((s,i)=>s + parseNum(i.qty)*parseNum(i.price), 0); }
-function dueDate(d){ const dt = new Date(d.date+'T00:00:00'); dt.setDate(dt.getDate() + (state.settings.due||24)); return dt; }
+function dueDate(d){ const dt = new Date(d.date+'T00:00:00'); dt.setDate(dt.getDate() + (state.settings.due||8)); return dt; }
 function isOverdue(d){ return d.type==='rechnung' && d.status==='versendet' && new Date() > dueDate(d); }
 function overdueDays(d){ return Math.floor((Date.now() - dueDate(d).getTime()) / 86400000); }
+// Verzugskosten B2B: 10,52 % p. a. Zinsen auf den Betrag für die Verzugstage + 40 € Pauschale (§ 288 V BGB)
+const VERZUG_ZINS = 0.1052, VERZUG_PAUSCHALE = 40;
+function verzugFee(betrag, tage){ return Math.round((betrag*VERZUG_ZINS*Math.max(0,tage)/365 + VERZUG_PAUSCHALE)*100)/100; }
 function nextNumber(type){
   const year = new Date().getFullYear();
   const pre = (type==='rechnung' ? 'RE' : 'AN') + '-' + year + '-';
@@ -1000,7 +1021,7 @@ function newDoc(){
     service:'', valid:'', status:'entwurf',
     customer:{firma:'',name:'',street:'',zip:'',city:'',mail:''},
     items:[{desc:'',detail:'',qty:1,unit:'pauschal',price:''}],
-    notes:'', agb:true, attachments:[], isNew:true
+    notes:'', agb:true, anzahlung: state.settings.anzahlungStd!==false, attachments:[], isNew:true
   };
   const v = new Date(); v.setDate(v.getDate()+14);
   editing.valid = v.toISOString().slice(0,10);
@@ -1023,6 +1044,7 @@ function fillEditor(){
   document.getElementById('fValid').value = editing.valid||'';
   document.getElementById('fNotes').value = editing.notes||'';
   document.getElementById('fAgb').checked = editing.agb!==false;
+  document.getElementById('fAnzahlung').checked = editing.anzahlung===true;
   const c = editing.customer||{};
   fcFirma.value=c.firma||''; fcName.value=c.name||''; fcStreet.value=c.street||'';
   fcZip.value=c.zip||''; fcCity.value=c.city||''; fcMail.value=c.mail||''; fcTax.value=c.tax||'';
@@ -1054,7 +1076,7 @@ function renderOverdueNote(){
   const d = {...editing, date: document.getElementById('fDate').value, status: document.getElementById('fStatus').value, type: editing.type};
   if(editing.type==='rechnung' && isOverdue(d)){
     const days = overdueDays(d);
-    el.innerHTML = `<div class="overdue-note">Diese Rechnung ist seit <b>${days} Tag${days===1?'':'en'}</b> überfällig (Zahlungsziel: ${deDate(dueDate(d).toISOString().slice(0,10))}).<br>Laut AGB § 2.2 wären das <b>${fmt(days*50)}</b> Verzugsgebühr (50 € / Kalendertag).</div>`;
+    el.innerHTML = `<div class="overdue-note">Diese Rechnung ist seit <b>${days} Tag${days===1?'':'en'}</b> überfällig (Zahlungsziel: ${deDate(dueDate(d).toISOString().slice(0,10))}).<br>Laut AGB § 2.2 wären das <b>${fmt(verzugFee(docTotal(d),days))}</b> Verzugskosten (10,52 % p. a. + 40 € Pauschale).</div>`;
   } else el.innerHTML='';
 }
 function discAbs(price){ const n = parseNum(price); return n ? String(Math.abs(n)).replace('.',',') : ''; }
@@ -1106,6 +1128,33 @@ function uDiscount(i,v){
 }
 function addItem(){ editing.items.push({desc:'',detail:'',qty:1,unit:'pauschal',price:''}); renderItems(); }
 function addDiscount(){ editing.items.push({desc:'Rabatt',detail:'',qty:1,unit:'',price:'',discount:true}); renderItems(); }
+// Positions-Vorlagen (Presets)
+const PRESETS = [
+  {desc:'Fahrtzeit (50 % Anrechnung)', detail:'Nur die Hälfte der Fahrtzeit wird berechnet', unit:'Std.', price:'50', qty:1},
+  {desc:'Fahrtkosten', detail:'', unit:'km', price:'0,35', qty:1},
+  {desc:'Zusatzstunde (über 8 Std.)', detail:'', unit:'Std.', price:'100', qty:1},
+  {desc:'Retainer-Paket S', detail:'Monatliche Betreuung', unit:'Monat', price:'950', qty:1},
+  {desc:'Retainer-Paket M', detail:'Monatliche Betreuung', unit:'Monat', price:'1950', qty:1},
+  {desc:'Retainer-Paket L', detail:'Monatliche Betreuung', unit:'Monat', price:'2950', qty:1}
+];
+function fillPresetOptions(){
+  const sel = document.getElementById('presetSel');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">✨ Vorlage einfügen …</option>' +
+    PRESETS.map((p,i)=>`<option value="${i}">${esc(p.desc)} — ${p.price} €/${esc(p.unit)}</option>`).join('');
+}
+function addPreset(i){
+  const p = PRESETS[+i]; if(!p) return;
+  // Falls die erste Position noch komplett leer ist: diese ersetzen statt anhängen
+  const first = editing.items[0];
+  if(editing.items.length===1 && first && !first.desc.trim() && !parseNum(first.price)){
+    editing.items[0] = {...p};
+  } else {
+    editing.items.push({...p});
+  }
+  renderItems();
+  toast('Vorlage eingefügt');
+}
 function rmItem(i){ editing.items.splice(i,1); renderItems(); }
 function updateTotals(){
   const s = state.settings;
@@ -1127,6 +1176,7 @@ function collectEditor(){
   editing.status = fStatus.value;
   editing.notes = fNotes.value;
   editing.agb = fAgb.checked;
+  editing.anzahlung = fAnzahlung.checked;
   editing.customer = {
     firma:fcFirma.value.trim(), name:fcName.value.trim(), street:fcStreet.value.trim(),
     zip:fcZip.value.trim(), city:fcCity.value.trim(), mail:fcMail.value.trim(), tax:fcTax.value.trim()
@@ -1278,7 +1328,7 @@ function renderMahnCard(){
   const hist = (editing.mahnungen||[]).map(m=>`${MAHN_LEVELS[m.level]||m.level} am ${deDate(m.date)}`).join(' · ');
   document.getElementById('mahnInfo').innerHTML =
     (over
-      ? `Überfällig seit <b style="color:var(--red)">${days} Tag${days===1?'':'en'}</b> (Ziel: ${deDate(due.toISOString().slice(0,10))}). Laut AGB § 2.2 wären <b>${fmt(days*50)}</b> Verzugsgebühr angefallen — Betrag unten anpassbar.`
+      ? `Überfällig seit <b style="color:var(--red)">${days} Tag${days===1?'':'en'}</b> (Ziel: ${deDate(due.toISOString().slice(0,10))}). Laut AGB § 2.2: <b>${fmt(verzugFee(docTotal(editing),days))}</b> Verzugskosten (10,52 % p. a. + 40 € Pauschale) — Betrag unten anpassbar.`
       : `Zahlungsziel: ${deDate(due.toISOString().slice(0,10))} — noch nicht überfällig.`)
     + (hist ? `<br>Bisher: ${hist}` : '');
   // Nächste Stufe vorschlagen
@@ -1291,7 +1341,7 @@ function renderMahnCard(){
 function mahnLevelChanged(){
   const lvl = document.getElementById('mLevel').value;
   const days = isOverdue(editing) ? overdueDays(editing) : 0;
-  document.getElementById('mFee').value = lvl==='erinnerung' ? '0' : String(days*50);
+  document.getElementById('mFee').value = lvl==='erinnerung' ? '0' : String(verzugFee(docTotal(editing), days));
 }
 function mahnSheetHTML(d, opts){
   const s = state.settings;
@@ -1306,11 +1356,14 @@ function mahnSheetHTML(d, opts){
   let text;
   if(opts.level==='erinnerung'){
     text = `sicherlich ist es Ihrer Aufmerksamkeit entgangen: Zur Rechnung <b>${esc(d.number)}</b> vom <b>${deDate(d.date)}</b> über <b>${fmt(total)}</b> konnten wir bislang keinen Zahlungseingang feststellen (Zahlungsziel: ${dueStr}). Wir bitten Sie, den offenen Betrag bis zum <b>${deDate(opts.due)}</b> zu überweisen. Sollte sich Ihre Zahlung mit diesem Schreiben überschnitten haben, betrachten Sie es bitte als gegenstandslos.`;
+  } else if(opts.level==='m1'){
+    text = `trotz Fälligkeit am <b>${dueStr}</b> konnten wir zur Rechnung <b>${esc(d.number)}</b> vom <b>${deDate(d.date)}</b> über <b>${fmt(total)}</b> bisher keinen Zahlungseingang feststellen. Gemäß § 2.2 unserer AGB befindet sich die Zahlung damit in Verzug. Wir bitten Sie, den offenen Betrag bis spätestens <b>${deDate(opts.due)}</b> auszugleichen.${fee>0?` Die gesetzliche Verzugskostenpauschale (40,00 €) sowie Verzugszinsen von 10,52 % p. a. sind im untenstehenden Gesamtbetrag bereits berücksichtigt.`:''}`;
+  } else if(opts.level==='m2'){
+    text = `leider haben Sie auf unsere bisherige Zahlungsaufforderung nicht reagiert. Die Rechnung <b>${esc(d.number)}</b> vom <b>${deDate(d.date)}</b> ist weiterhin vollständig offen. Wir setzen Ihnen hiermit eine <b>letzte Frist bis zum ${deDate(opts.due)}</b>. Sollte der Gesamtbetrag bis dahin nicht bei uns eingegangen sein, geben wir die Forderung ohne weitere Ankündigung zur weiteren Beitreibung ab; die dadurch entstehenden Kosten tragen Sie.${fee>0?` Verzugszinsen (10,52 % p. a.) und die Pauschale von 40,00 € sind im Gesamtbetrag enthalten.`:''}`;
   } else {
-    text = `trotz Fälligkeit am <b>${dueStr}</b> konnten wir zur Rechnung <b>${esc(d.number)}</b> vom <b>${deDate(d.date)}</b> bisher keinen Zahlungseingang feststellen. Gemäß § 2.2 unserer AGB befindet sich die Zahlung damit in Verzug${fee>0?` — es fällt die folgende Verzugsgebühr an`:''}. Wir bitten um Ausgleich des Gesamtbetrags bis spätestens <b>${deDate(opts.due)}</b>.`
-    + (opts.level==='letzte' ? ` Nach fruchtlosem Ablauf dieser Frist behalten wir uns vor, weitere rechtliche Schritte einzuleiten.` : '');
+    text = `trotz mehrfacher Aufforderung konnten wir zur Rechnung <b>${esc(d.number)}</b> vom <b>${deDate(d.date)}</b> keinen Zahlungseingang feststellen. Wir fordern Sie <b>letztmalig</b> auf, den Gesamtbetrag bis zum <b>${deDate(opts.due)}</b> zu begleichen. Nach fruchtlosem Ablauf dieser Frist leiten wir ohne weitere Mahnung rechtliche Schritte ein.`;
   }
-  const feeRow = fee>0 ? `<tr><td>2</td><td><div>Verzugsgebühr gemäß § 2.2 AGB</div><div class="idesc">${isOverdue(d)?overdueDays(d)+' Kalendertage Verzug':''}</div></td><td class="r"></td><td class="r"></td><td class="r">${fmt(fee)}</td></tr>` : '';
+  const feeRow = fee>0 ? `<tr><td>2</td><td><div>Verzugskosten gemäß § 2.2 AGB</div><div class="idesc">10,52 % p. a. + 40 € Pauschale${isOverdue(d)?' · '+overdueDays(d)+' Kalendertage Verzug':''}</div></td><td class="r"></td><td class="r"></td><td class="r">${fmt(fee)}</td></tr>` : '';
   return `
   <div class="sheet">
     <div class="doc-head">
@@ -1412,6 +1465,8 @@ function fillSettings(){
   sPhone.value=s.phone; sMail.value=s.mail; sWeb.value=s.web;
   sTax.value=s.tax; sBank.value=s.bank; sIban.value=s.iban; sBic.value=s.bic;
   sKlein.checked=s.klein; sVat.value=s.vat; sDue.value=s.due;
+  sAnzahlungStd.checked=s.anzahlungStd!==false; sAnzahlungPct.value=s.anzahlungPct||50;
+  sHinweis.value=s.hinweis||'';
   sClientId.value=s.clientId||''; sDriveAuto.checked=s.driveAuto!==false;
   updateDriveStatus();
 }
@@ -1420,7 +1475,9 @@ function saveSettings(){
     name:sName.value.trim(), street:sStreet.value.trim(), zip:sZip.value.trim(), city:sCity.value.trim(),
     phone:sPhone.value.trim(), mail:sMail.value.trim(), web:sWeb.value.trim(),
     tax:sTax.value.trim(), bank:sBank.value.trim()||FIX_BANK, iban:sIban.value.trim()||FIX_IBAN, bic:sBic.value.trim()||FIX_BIC,
-    klein:sKlein.checked, vat:parseNum(sVat.value)||19, due:parseInt(sDue.value)||24,
+    klein:sKlein.checked, vat:parseNum(sVat.value)||19, due:parseInt(sDue.value)||8,
+    anzahlungStd:sAnzahlungStd.checked, anzahlungPct:parseInt(sAnzahlungPct.value)||50,
+    hinweis:sHinweis.value.trim(),
     clientId:sClientId.value.trim(), driveAuto:sDriveAuto.checked,
     goal:state.settings.goal||1500
   };
@@ -1965,14 +2022,22 @@ function docSheetHTML(d){
        <div class="sumrow"><span>Umsatzsteuer ${s.vat||19} %</span><span>${fmt(vat)}</span></div>
        <div class="sumrow total"><span>Gesamtbetrag</span><span>${fmt(total)}</span></div>`;
   const kust = s.klein ? `<div class="kust">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</div>` : '';
+  // Anzahlungs-Aufteilung
+  const pct = s.anzahlungPct||50;
+  const anz = Math.round(total*pct/100*100)/100, rest = Math.round((total-anz)*100)/100;
+  const anzahlungBlock = (d.anzahlung && total>0) ? `
+    <div class="sumblock" style="margin-top:8px"><div class="in">
+      <div class="sumrow"><span>Anzahlung (${pct} %) – sofort fällig</span><span>${fmt(anz)}</span></div>
+      <div class="sumrow"><span>Restbetrag – nach Fertigstellung</span><span>${fmt(rest)}</span></div>
+    </div></div>` : '';
   const pay = isRe ? `
     <div class="payblock">
-      Bitte überweise den Gesamtbetrag von <b>${fmt(total)}</b> bis zum <b>${deDate(due.toISOString().slice(0,10))}</b>
-      (${s.due||24} Tage, § 2.1 AGB) unter Angabe der Rechnungsnummer <b>${esc(d.number)}</b>.<br>
+      ${d.anzahlung ? `Bitte überweise${c.firma?'n Sie':''} die Anzahlung von <b>${fmt(anz)}</b> bis zum <b>${deDate(due.toISOString().slice(0,10))}</b> (${s.due||8} Tage, § 2.1 AGB), den Restbetrag von <b>${fmt(rest)}</b> nach Fertigstellung` : `Bitte überweise${c.firma?'n Sie':''} den Gesamtbetrag von <b>${fmt(total)}</b> bis zum <b>${deDate(due.toISOString().slice(0,10))}</b> (${s.due||8} Tage, § 2.1 AGB)`} unter Angabe der Rechnungsnummer <b>${esc(d.number)}</b>.<br>
       ${s.bank||s.iban ? `Kontoinhaber: <b>${esc(s.name)}</b>${s.bank?` · <b>${esc(s.bank)}</b>`:''}<br>IBAN: <b>${esc(s.iban)}</b>${s.bic?` · BIC: <b>${esc(s.bic)}</b>`:''}` : ''}
     </div>` : `
     <div class="payblock">
-      Dieses Angebot ist gültig bis <b>${deDate(d.valid)||'–'}</b>. Mit Auftragserteilung gelten die beiliegenden AGB als anerkannt.
+      Dieses Angebot ist gültig bis <b>${deDate(d.valid)||'–'}</b>.${d.anzahlung?` Mit Auftragserteilung wird eine Anzahlung von <b>${fmt(anz)}</b> (${pct} %) fällig, der Restbetrag nach Fertigstellung.`:''}<br>
+      <b>Mit Auftragserteilung gelten die beigefügten Allgemeinen Geschäftsbedingungen als anerkannt.</b>
     </div>`;
   return `
   <div class="sheet">
@@ -2011,9 +2076,11 @@ function docSheetHTML(d){
       <tbody>${rows}</tbody>
     </table>
     <div class="sumblock"><div class="in">${sums}</div></div>
+    ${anzahlungBlock}
     ${kust}
     ${pay}
     ${d.notes?`<div class="notes">${esc(d.notes)}</div>`:''}
+    ${s.hinweis?`<div class="notes" style="color:#9a9a9a; font-size:10px; margin-top:14px">${esc(s.hinweis)}</div>`:''}
     <div class="foot">
       <div><b style="color:#9a9a9a">NKZS / ${esc(s.name)}</b><br>${esc(s.street)}${s.street?'<br>':''}${esc([s.zip,s.city].filter(Boolean).join(' '))}</div>
       <div>${s.phone?esc(s.phone)+'<br>':''}${esc(s.mail)}<br>${esc(s.web)}</div>
@@ -2096,7 +2163,8 @@ function doPrint(){
 }
 
 /* =================== App-Version & Updates =================== */
-const APP_VERSION = '3.0';
+const APP_VERSION = '3.1';
+fillPresetOptions();
 document.getElementById('appVersion').textContent = APP_VERSION;
 {
   const lastVer = localStorage.getItem('nkzs-ver');
