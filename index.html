@@ -695,6 +695,15 @@ select.f{
       <textarea class="f" id="sHinweis" style="min-height:110px" placeholder="Steht unter den Positionen auf jeder Rechnung/​jedem Angebot"></textarea>
       <p class="hint" style="margin-bottom:0">Erscheint klein unter den Positionen. Leer lassen = kein Hinweis.</p>
     </div>
+    <div class="card-label">Cloud-Sync (iPhone ↔ Mac)</div>
+    <div class="card">
+      <label class="chk" style="margin-top:2px"><span>Rechnungen über meine Google Drive synchronisieren</span><input type="checkbox" id="sSync"><span class="sw"></span></label>
+      <div class="btn-row h" style="margin-top:14px">
+        <button class="btn sec small" onclick="syncNow()">Jetzt synchronisieren</button>
+      </div>
+      <p class="hint" id="syncStatus" style="margin-bottom:0">–</p>
+      <p class="hint" style="margin-bottom:0">Tipp: Zuerst am iPhone einschalten (dort liegen deine echten Daten), dann am Mac – so wird nichts überschrieben.</p>
+    </div>
     <div class="card-label">Google Drive</div>
     <div class="card">
       <label class="f" style="margin-top:2px">Client-ID (aus der Google Cloud Console)</label>
@@ -810,7 +819,7 @@ const defaultState = {
     name:'Nico Elia Klein', street:'', zip:'', city:'Biebertal',
     phone:'', mail:'nicoklein@nkzs.de', web:'nkzs.de',
     tax:'', bank:FIX_BANK, iban:FIX_IBAN, bic:FIX_BIC,
-    klein:true, vat:19, due:8,
+    klein:true, vat:19, due:8, sync:false,
     anzahlungStd:true, anzahlungPct:50,
     hinweis:'Zahlbar per Überweisung auf das unten genannte Konto. Als Kleinunternehmer gem. § 19 UStG weise ich keine Umsatzsteuer aus. Nutzungs- und Verwertungsrechte gehen erst mit vollständigem Zahlungseingang über. Es gelten die beigefügten Allgemeinen Geschäftsbedingungen.',
     clientId:DEFAULT_CLIENT_ID, driveAuto:true, goal:1500
@@ -820,29 +829,34 @@ const defaultState = {
   cash: []
 };
 
+function normalizeState(s){
+  const merged = {...structuredClone(defaultState), ...s, settings:{...defaultState.settings, ...(s.settings||{})}};
+  if(!merged.settings.clientId) merged.settings.clientId = DEFAULT_CLIENT_ID;
+  // Leere Bankfelder aus Altprofilen mit den festen Daten nachfüllen
+  if(!merged.settings.bank) merged.settings.bank = FIX_BANK;
+  if(!merged.settings.iban) merged.settings.iban = FIX_IBAN;
+  if(!merged.settings.bic)  merged.settings.bic  = FIX_BIC;
+  // Neue Zahlungsbedingungen: altes Zahlungsziel 24 → 8, neue Felder nachziehen
+  if(merged.settings.due===24) merged.settings.due = 8;
+  if(merged.settings.hinweis==null) merged.settings.hinweis = defaultState.settings.hinweis;
+  if(merged.settings.anzahlungStd==null) merged.settings.anzahlungStd = true;
+  if(merged.settings.anzahlungPct==null) merged.settings.anzahlungPct = 50;
+  if(merged.settings.sync==null) merged.settings.sync = false;
+  return merged;
+}
 let state = load();
 function load(){
   try{
     const raw = localStorage.getItem(LS_KEY);
-    if(raw){
-      const s = JSON.parse(raw);
-      const merged = {...structuredClone(defaultState), ...s, settings:{...defaultState.settings, ...(s.settings||{})}};
-      if(!merged.settings.clientId) merged.settings.clientId = DEFAULT_CLIENT_ID;
-      // Leere Bankfelder aus Altprofilen mit den festen Daten nachfüllen
-      if(!merged.settings.bank) merged.settings.bank = FIX_BANK;
-      if(!merged.settings.iban) merged.settings.iban = FIX_IBAN;
-      if(!merged.settings.bic)  merged.settings.bic  = FIX_BIC;
-      // Neue Zahlungsbedingungen: altes Zahlungsziel 24 → 8, neue Felder nachziehen
-      if(merged.settings.due===24) merged.settings.due = 8;
-      if(merged.settings.hinweis==null) merged.settings.hinweis = defaultState.settings.hinweis;
-      if(merged.settings.anzahlungStd==null) merged.settings.anzahlungStd = true;
-      if(merged.settings.anzahlungPct==null) merged.settings.anzahlungPct = 50;
-      return merged;
-    }
+    if(raw) return normalizeState(JSON.parse(raw));
   }catch(e){}
   return structuredClone(defaultState);
 }
-function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+function save(){
+  state.updatedAt = Date.now();
+  localStorage.setItem(LS_KEY, JSON.stringify(state));
+  scheduleCloudPush();
+}
 
 /* =================== Utils =================== */
 const EUR = new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'});
@@ -1468,7 +1482,8 @@ function fillSettings(){
   sAnzahlungStd.checked=s.anzahlungStd!==false; sAnzahlungPct.value=s.anzahlungPct||50;
   sHinweis.value=s.hinweis||'';
   sClientId.value=s.clientId||''; sDriveAuto.checked=s.driveAuto!==false;
-  updateDriveStatus();
+  sSync.checked=s.sync===true;
+  updateDriveStatus(); updateSyncStatus();
 }
 function saveSettings(){
   state.settings = {
@@ -1479,9 +1494,11 @@ function saveSettings(){
     anzahlungStd:sAnzahlungStd.checked, anzahlungPct:parseInt(sAnzahlungPct.value)||50,
     hinweis:sHinweis.value.trim(),
     clientId:sClientId.value.trim(), driveAuto:sDriveAuto.checked,
+    sync:sSync.checked,
     goal:state.settings.goal||1500
   };
-  save(); updateDriveStatus(); toast('Einstellungen gespeichert');
+  save(); updateDriveStatus(); updateSyncStatus(); toast('Einstellungen gespeichert');
+  if(state.settings.sync && state.settings.clientId) syncNow();
 }
 function blobToB64(blob){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(blob); }); }
 async function exportData(){
@@ -1872,8 +1889,9 @@ async function connectDrive(){
   try{
     await getDriveToken(true);
     toast('Mit Google Drive verbunden');
+    if(state.settings.sync) await syncNow();
   }catch(e){ alert('Verbindung fehlgeschlagen: '+e.message); }
-  updateDriveStatus();
+  updateDriveStatus(); updateSyncStatus();
 }
 function updateDriveStatus(){
   const el = document.getElementById('driveStatus'); if(!el) return;
@@ -1912,6 +1930,71 @@ async function driveUploadBlob(blob, name, folderId){
   form.append('metadata', new Blob([JSON.stringify({name, parents:[folderId]})], {type:'application/json'}));
   form.append('file', blob);
   return driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {method:'POST', body:form});
+}
+/* ============ Cloud-Sync über Google Drive (iPhone ↔ Mac) ============ */
+const SYNC_FILE = 'nkzs-daten.json';
+let syncTimer = null, syncBusy = false;
+async function driveReadText(fileId){
+  let token; try{ token = await getDriveToken(false); }catch(e){ token = await getDriveToken(true); }
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {headers:{Authorization:'Bearer '+token}});
+  if(!r.ok) throw new Error('Cloud-Download Fehler '+r.status);
+  return r.text();
+}
+async function findSyncFile(){
+  const root = await driveFolder('NKZS Rechnungen','root');
+  const q = encodeURIComponent(`name='${SYNC_FILE}' and '${root}' in parents and trashed=false`);
+  const found = await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,modifiedTime)`);
+  return {root, file:(found.files&&found.files[0])||null};
+}
+async function cloudPull(){
+  const {file} = await findSyncFile();
+  if(!file) return 'none';
+  const txt = await driveReadText(file.id);
+  let remote; try{ remote = JSON.parse(txt); }catch(e){ return 'bad'; }
+  const rT = remote.updatedAt||0, lT = state.updatedAt||0;
+  if(rT > lT){
+    state = normalizeState(remote);
+    localStorage.setItem(LS_KEY, JSON.stringify(state)); // ohne updatedAt-Stempel: Cloud-Stand behalten
+    return 'pulled';
+  }
+  return 'local-newer';
+}
+async function cloudPush(){
+  const {root} = await findSyncFile();
+  const blob = new Blob([JSON.stringify(state)], {type:'application/json'});
+  await driveUploadBlob(blob, SYNC_FILE, root);
+  return true;
+}
+function scheduleCloudPush(){
+  if(!state.settings.sync || !state.settings.clientId || !tokenValid()) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(()=>{ if(!syncBusy) cloudPush().catch(()=>{}); }, 1500);
+}
+function renderAfterSync(){
+  const active = document.querySelector('.view.active')?.id?.replace('view-','') || 'docs';
+  showView(active, null);
+}
+async function syncNow(){
+  if(!state.settings.clientId){ alert('Bitte zuerst unter „Google Drive" verbinden.'); return; }
+  if(syncBusy) return;
+  syncBusy = true; toast('Synchronisiere …');
+  try{
+    const r = await cloudPull();
+    if(r==='pulled'){ renderAfterSync(); toast('Vom Cloud-Stand aktualisiert ✓'); }
+    else { await cloudPush(); toast('In die Cloud gesichert ✓'); }
+    updateSyncStatus();
+  }catch(e){ alert('Sync fehlgeschlagen: '+(e.message||e)); }
+  finally{ syncBusy = false; }
+}
+function updateSyncStatus(){
+  const el = document.getElementById('syncStatus'); if(!el) return;
+  if(!state.settings.clientId){ el.textContent = 'Zuerst unten „Google Drive" verbinden.'; return; }
+  if(!state.settings.sync){ el.textContent = 'Aus. Einschalten → deine Rechnungen liegen dann in deiner Drive und sind auf iPhone + Mac gleich.'; return; }
+  el.textContent = state.updatedAt ? ('Aktiv ✓ · zuletzt geändert '+new Date(state.updatedAt).toLocaleString('de-DE')) : 'Aktiv ✓';
+}
+async function autoCloudPull(){
+  if(!state.settings.sync || !state.settings.clientId || !localStorage.getItem('nkzs-drive-ok')) return;
+  try{ if(await cloudPull()==='pulled') renderAfterSync(); }catch(e){}
 }
 async function uploadDocToDrive(d, quiet, pdfBlob){
   if(!state.settings.clientId){ toast('Google Drive ist nicht eingerichtet'); return false; }
@@ -2163,7 +2246,7 @@ function doPrint(){
 }
 
 /* =================== App-Version & Updates =================== */
-const APP_VERSION = '3.1';
+const APP_VERSION = '3.2';
 fillPresetOptions();
 document.getElementById('appVersion').textContent = APP_VERSION;
 {
@@ -2192,6 +2275,8 @@ document.addEventListener('gesturechange', e => e.preventDefault());
 renderList();
 setTimeout(syncSegs, 50);
 if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=>setTimeout(syncSegs, 50));
+// Beim Start still den Cloud-Stand ziehen (falls Sync aktiv & schon verbunden)
+setTimeout(()=>autoCloudPull(), 500);
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').then(reg => {
     // App fragt bei jedem Öffnen aktiv nach einer neuen Version
