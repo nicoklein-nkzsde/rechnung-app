@@ -717,6 +717,16 @@ select.f{
     <div class="btn-row">
       <button class="btn block" onclick="saveSettings()">Einstellungen speichern</button>
     </div>
+    <div class="card-label" style="margin-top:24px">Steuer-Export</div>
+    <div class="card">
+      <label class="f" style="margin-top:2px">Jahr</label>
+      <select class="f" id="taxYear"></select>
+      <div class="btn-row h" style="margin-top:12px">
+        <button class="btn sec small" onclick="exportTaxCSV()">Einnahmen als CSV</button>
+        <button class="btn sec small" onclick="exportTaxZIP()">Alle Rechnungen als PDF (ZIP)</button>
+      </div>
+      <p class="hint" id="taxSummary" style="margin-bottom:0">–</p>
+    </div>
     <div class="card-label" style="margin-top:24px">Datensicherung</div>
     <div class="card">
       <p class="hint" style="margin:2px 0 12px">Alle Daten liegen nur auf diesem Gerät. Mach regelmäßig ein Backup!</p>
@@ -1483,7 +1493,7 @@ function fillSettings(){
   sHinweis.value=s.hinweis||'';
   sClientId.value=s.clientId||''; sDriveAuto.checked=s.driveAuto!==false;
   sSync.checked=s.sync===true;
-  updateDriveStatus(); updateSyncStatus();
+  updateDriveStatus(); updateSyncStatus(); fillTaxYears();
 }
 function saveSettings(){
   state.settings = {
@@ -1501,6 +1511,85 @@ function saveSettings(){
   if(state.settings.sync && state.settings.clientId) syncNow();
 }
 function blobToB64(blob){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(blob); }); }
+function downloadBlob(blob, name){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
+
+/* =================== Steuer-Export =================== */
+// Für die Steuer zählen Rechnungen nach Bezahldatum (Zuflussprinzip) + Bar-Einnahmen
+function taxDate(d){ return (d.paidAt || d.date || ''); }
+function taxYears(){
+  const set = new Set();
+  state.docs.forEach(d=>{ if(d.type==='rechnung'){ const y=taxDate(d).slice(0,4); if(y) set.add(y); } });
+  (state.cash||[]).forEach(c=>{ const y=(c.date||'').slice(0,4); if(y) set.add(y); });
+  return [...set].sort().reverse();
+}
+function fillTaxYears(){
+  const sel = document.getElementById('taxYear'); if(!sel) return;
+  const ys = taxYears();
+  sel.innerHTML = '<option value="alle">Alle Jahre</option>' + ys.map(y=>`<option value="${y}">${y}</option>`).join('');
+  if(ys.length) sel.value = ys[0];
+  sel.onchange = updateTaxSummary;
+  updateTaxSummary();
+}
+function taxRows(year){
+  const rows = [];
+  state.docs.filter(d=>d.type==='rechnung').forEach(d=>{
+    const y = taxDate(d).slice(0,4);
+    if(year!=='alle' && y!==year) return;
+    rows.push({datum:d.date, bezahlt:d.paidAt||'', nr:d.number, kunde:(d.customer?.firma||d.customer?.name||''), status:d.status, betrag:docTotal(d), typ:'Rechnung'});
+  });
+  (state.cash||[]).forEach(c=>{
+    const y=(c.date||'').slice(0,4);
+    if(year!=='alle' && y!==year) return;
+    rows.push({datum:c.date, bezahlt:c.date, nr:'', kunde:(c.note||'Bar-Einnahme'), status:'bezahlt', betrag:c.amount||0, typ:'Bar'});
+  });
+  rows.sort((a,b)=>(a.datum||'').localeCompare(b.datum||''));
+  return rows;
+}
+function updateTaxSummary(){
+  const el = document.getElementById('taxSummary'); if(!el) return;
+  const year = document.getElementById('taxYear').value || 'alle';
+  const rows = taxRows(year);
+  const bezahlt = rows.filter(r=>r.status==='bezahlt').reduce((s,r)=>s+r.betrag,0);
+  const offen = rows.filter(r=>r.status!=='bezahlt').reduce((s,r)=>s+r.betrag,0);
+  el.innerHTML = `${rows.length} Rechnung${rows.length===1?'':'en'} · <b style="color:var(--green)">${fmt(bezahlt)} eingegangen</b>${offen?` · ${fmt(offen)} offen`:''}`;
+}
+function exportTaxCSV(){
+  const year = document.getElementById('taxYear').value || 'alle';
+  const rows = taxRows(year);
+  if(!rows.length){ alert('Keine Rechnungen für diesen Zeitraum.'); return; }
+  const esc = v => `"${String(v).replace(/"/g,'""')}"`;
+  const head = ['Datum','Bezahlt am','Typ','Rechnungsnr.','Kunde','Status','Betrag EUR'];
+  const lines = [head.map(esc).join(';')];
+  rows.forEach(r=>lines.push([deDate(r.datum), deDate(r.bezahlt), r.typ, r.nr, r.kunde, r.status, String(r.betrag).replace('.',',')].map(esc).join(';')));
+  const bezahlt = rows.filter(r=>r.status==='bezahlt').reduce((s,r)=>s+r.betrag,0);
+  lines.push('');
+  lines.push([esc('Summe eingegangen (Einnahmen)'),'','','','','',esc(String(Math.round(bezahlt*100)/100).replace('.',','))].join(';'));
+  lines.push([esc('Hinweis'),'','','','','',esc('Kleinunternehmer § 19 UStG – keine Umsatzsteuer')].join(';'));
+  const blob = new Blob(['﻿'+lines.join('\r\n')], {type:'text/csv;charset=utf-8'});
+  downloadBlob(blob, `NKZS-Einnahmen-${year}.csv`);
+  toast('CSV exportiert ✓');
+}
+async function exportTaxZIP(){
+  const year = document.getElementById('taxYear').value || 'alle';
+  const docs = state.docs.filter(d=>d.type==='rechnung' && (year==='alle' || taxDate(d).slice(0,4)===year))
+    .sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  if(!docs.length){ alert('Keine Rechnungen für diesen Zeitraum.'); return; }
+  toast('PDFs werden erstellt … (kann kurz dauern)');
+  try{
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+    const zip = new JSZip();
+    for(const d of docs){
+      const pdf = await generatePDF(d);
+      zip.file(pdfName(d), pdf);
+    }
+    const blob = await zip.generateAsync({type:'blob'});
+    downloadBlob(blob, `NKZS-Rechnungen-${year}.zip`);
+    toast('ZIP mit '+docs.length+' Rechnungen exportiert ✓');
+  }catch(e){ alert('ZIP-Export fehlgeschlagen: '+(e.message||e)); }
+}
 async function exportData(){
   toast('Backup wird erstellt …');
   const out = structuredClone(state);
@@ -2246,7 +2335,7 @@ function doPrint(){
 }
 
 /* =================== App-Version & Updates =================== */
-const APP_VERSION = '3.2';
+const APP_VERSION = '3.3';
 fillPresetOptions();
 document.getElementById('appVersion').textContent = APP_VERSION;
 {
